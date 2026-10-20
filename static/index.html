@@ -71,16 +71,19 @@
           <textarea id="pasteBox" rows="9" placeholder="Jane Doe, jane@email.com&#10;Senior at Lincoln High, 3.9 GPA&#10;President of Robotics Club 2023 to 2025, led 15 members to state finals&#10;Cashier at Target since June 2024, handle 80+ customers a shift&#10;Volunteer at the food bank, 120 hours&#10;Skills: Python, Excel, Spanish (fluent)"></textarea>
         </label>
         <div class="import-actions">
-          <button class="btn primary big" id="extractBtn" type="button"><span class="btn-icon" data-icon="sparkle" data-size="17"></span><span class="btn-label">Extract and fill my info</span></button>
-          <label class="check" id="aiSortWrap" hidden><input type="checkbox" id="aiSort" checked><span></span>Sort with AI</label>
           <button class="link-btn" id="sampleBtn" type="button">Try a sample</button>
         </div>
-        <p class="hint">Adds to what's already there, so nothing you've typed gets overwritten. Everything stays on your computer. Press <kbd>Ctrl</kbd> + <kbd>Enter</kbd> in the box to run it.</p>
+        <p class="hint">A few sentences about yourself is enough: school, jobs, clubs, sports, awards, skills. Adds to what's already there, so nothing you've typed gets overwritten. Press <kbd>Ctrl</kbd> + <kbd>Enter</kbd> in the box to optimize.</p>
         <div class="errors" id="importErrors"></div>
       </div>
 
       <div class="panel" data-panel="info" id="infoPanel"></div>
       <div class="panel" data-panel="design" id="designPanel"></div>
+
+      <div class="optimize-bar">
+        <button class="btn primary big" id="optimizeBtn" type="button"><span class="btn-icon" data-icon="sparkle" data-size="17"></span><span class="btn-label">Optimize my Resume</span></button>
+        <p class="optimize-note" id="optimizeNote">Sorts your info into the right sections.</p>
+      </div>
     </section>
 
     <section class="preview-col">

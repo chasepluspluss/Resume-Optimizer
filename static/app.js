@@ -494,11 +494,12 @@ function renderInsights() {
   }
 
   const warns = items.filter(i => i.level === 'warn').length, tips = items.filter(i => i.level === 'tip').length;
-  const score = Math.max(20, Math.min(100, 100 - warns * 13 - tips * 5));
+  const empty = !hasAnyInfo();
+  const score = empty ? 0 : Math.max(20, Math.min(100, 100 - warns * 13 - tips * 5));
   const ring = score >= 85 ? '#16A34A' : score >= 65 ? '#E08A00' : '#E5484D';
   const rank = { warn: 0, tip: 1, good: 2 };
   const sorted = [...items].sort((a, b) => rank[a.level] - rank[b.level]);
-  const headline = score >= 95 ? 'Ready to send' : score >= 85 ? 'Looking strong' : score >= 65 ? 'Almost there' : 'Needs a few things';
+  const headline = empty ? 'No info yet' : score >= 95 ? 'Ready to send' : score >= 85 ? 'Looking strong' : score >= 65 ? 'Almost there' : 'Needs a few things';
   const markIcon = { good: icon('check', 13, 2.6), warn: icon('alert', 13, 2.8), tip: icon('arrow', 13, 2.4) };
   const C = 2 * Math.PI * 25, prev = shownScore ?? score;
 
@@ -510,8 +511,9 @@ function renderInsights() {
         <b id="scoreNum">${prev}</b>
       </div>
       <div style="flex:1;min-width:0">
-        <div class="ins-title">${headline} for ${esc(mode.label)}</div>
-        <div class="ins-sub">${warns ? `${warns} thing${warns > 1 ? 's' : ''} to fix` : 'Nothing to fix'}, ${tips} suggestion${tips === 1 ? '' : 's'}</div>
+        <div class="ins-title">${empty ? 'Add your info to get a score' : `${headline} for ${esc(mode.label)}`}</div>
+        <div class="ins-sub">${empty ? 'Type a few sentences about yourself or drop in an old resume, then hit Optimize my Resume'
+          : `${warns ? `${warns} thing${warns > 1 ? 's' : ''} to fix` : 'Nothing to fix'}, ${tips} suggestion${tips === 1 ? '' : 's'}`}</div>
       </div>
       <button class="btn ins-toggle" id="insToggle" type="button">${insightsOpen ? 'Hide' : 'Show'} tips</button>
     </div>
@@ -627,17 +629,22 @@ function renderTargets() {
 
 // ------------------------------------------------------------------ rendering: info form
 
-function field(path, label, value, placeholder, type = 'text') {
-  return `<label class="fld"><span>${label}</span><input type="${type}" data-path="${path}" value="${esc(value)}" placeholder="${esc(placeholder)}"></label>`;
+const needNote = (value, text = 'Fill this in') => `<em class="need" ${String(value || '').trim() ? 'hidden' : ''}>${text}</em>`;
+
+function field(path, label, value, placeholder, type = 'text', need = false) {
+  return `<label class="fld"><span>${label}${need ? needNote(value) : ''}</span><input type="${type}" data-path="${path}" value="${esc(value)}" placeholder="${esc(placeholder)}"></label>`;
 }
+
+const emptyNote = what => `<p class="empty-note">${icon('alert', 15, 2.4)}<span>Nothing about ${what} was found in your info yet. Fill it in here, or leave it blank if it doesn't apply.</span></p>`;
 
 function entryTitle(sec, e) {
   const h = ENTRY[sec].heading(e), s = ENTRY[sec].sub(e);
   return h && s ? `${h} · ${s}` : h || s || '';
 }
 
-function cardHead(iconName, color, label, count, countLabel) {
+function cardHead(iconName, color, label, count, countLabel, needs = !count) {
   return `<summary><span class="s-icon" style="--c:${color}">${icon(iconName, 17)}</span>${label}
+    ${needs ? '<span class="need-tag">Needs info</span>' : ''}
     <span class="count ${count ? 'has' : ''}">${countLabel ?? count}</span><span class="chev">${icon('chevron', 18)}</span></summary>`;
 }
 
@@ -646,14 +653,14 @@ function aiCardHTML() {
   if (!aiInfo.configured && aiInfo.locked) return '';
   if (!aiInfo.configured) {
     return `<div class="ai-card"><span class="ai-card-icon">${icon('sparkle', 17)}</span>
-      <div class="ai-card-text"><strong>Make it sound professional with AI</strong><small>Connect a free AI to rewrite your bullets and summary for ${esc(mode)}.</small></div>
+      <div class="ai-card-text"><strong>Make it sound professional with AI</strong><small>Connect a free AI so Optimize my Resume also rewrites everything for ${esc(mode)}.</small></div>
       <div class="ai-card-actions"><button class="btn primary" type="button" data-ai-connect>Connect</button></div></div>`;
   }
+  if (!aiBusy && !state.aiUndo && !state.aiTips?.length) return '';
   return `<div class="ai-card ${aiBusy ? 'busy' : ''}"><span class="ai-card-icon">${aiBusy ? '<i class="spin"></i>' : icon('sparkle', 17)}</span>
-    <div class="ai-card-text"><strong>${aiBusy ? `Polishing with ${esc(aiInfo.label)}` : 'Polish with AI'}</strong>
-      <small>${aiBusy ? 'Rewriting your summary, bullets and skills. This takes a few seconds.' : `Rewrites your summary and bullets for ${esc(mode)}, tidies skills and puts the most relevant entries first. Nothing gets made up.`}</small></div>
-    <div class="ai-card-actions">${state.aiUndo && !aiBusy ? '<button class="btn ghost" type="button" data-ai-undo>Undo</button>' : ''}
-      <button class="btn primary" type="button" data-ai-polish ${aiBusy ? 'disabled' : ''}>Polish</button></div>
+    <div class="ai-card-text"><strong>${aiBusy ? `Rewriting with ${esc(aiInfo.label)}` : `Optimized for ${esc(mode)}`}</strong>
+      <small>${aiBusy ? 'Rewriting your summary, bullets and every section. This takes a few seconds.' : 'Read it over. Undo brings back your previous wording.'}</small></div>
+    <div class="ai-card-actions">${state.aiUndo && !aiBusy ? '<button class="btn" type="button" data-ai-undo>Undo</button>' : ''}</div>
     ${state.aiTips?.length && !aiBusy ? `<div class="ai-tips"><b>Answer these to make it even stronger</b>
       <ul>${state.aiTips.map(t => `<li>${esc(t)}</li>`).join('')}</ul></div>` : ''}</div>`;
 }
@@ -665,17 +672,17 @@ function renderInfo() {
 
   let h = aiCardHTML() + `
   <details class="card" data-card="contact" ${isOpen('contact') ? 'open' : ''}>
-    ${cardHead('user', COLORS.blue, 'Contact & summary', p.name ? 1 : 0, p.name ? icon('check', 14, 3) : '!')}
+    ${cardHead('user', COLORS.blue, 'Contact & summary', p.name ? 1 : 0, p.name ? icon('check', 14, 3) : '!', !(p.name && p.email && p.phone))}
     <div class="card-body">
       <div class="grid2">
-        ${field('profile.name', 'Full name', p.name, 'Jordan Rivera')}
-        ${field('profile.email', 'Email', p.email, 'jordan@email.com', 'email')}
-        ${field('profile.phone', 'Phone', p.phone, '(512) 555-0147', 'tel')}
-        ${field('profile.location', 'City, State', p.location, 'Austin, TX')}
+        ${field('profile.name', 'Full name', p.name, 'Jordan Rivera', 'text', true)}
+        ${field('profile.email', 'Email', p.email, 'jordan@email.com', 'email', true)}
+        ${field('profile.phone', 'Phone', p.phone, '(512) 555-0147', 'tel', true)}
+        ${field('profile.location', 'City, State', p.location, 'Austin, TX', 'text', true)}
         <label class="fld wide"><span>Links: LinkedIn, portfolio, GitHub (separate with | )</span>
           <input type="text" data-path="profile.links" value="${esc(p.links)}" placeholder="linkedin.com/in/jordan | jordan.dev"></label>
         <label class="fld wide">
-          <span class="fld-row">Summary <button class="mini-btn" type="button" data-draft>${icon('sparkle', 14)}Draft for me</button></span>
+          <span class="fld-row"><span>Summary${needNote(p.summary, 'Optimize writes this')}</span> <button class="mini-btn" type="button" data-draft>${icon('sparkle', 14)}Draft for me</button></span>
           <textarea data-path="profile.summary" rows="3" placeholder="Two or three lines on who you are and what you're aiming for. Optional for internships and college apps.">${esc(p.summary)}</textarea>
         </label>
       </div>
@@ -688,6 +695,7 @@ function renderInfo() {
     <details class="card" data-card="${sec}" ${isOpen(sec) ? 'open' : ''}>
       ${cardHead(cfg.icon, cfg.color, cfg.label, items.length)}
       <div class="card-body">
+        ${items.length ? '' : emptyNote(cfg.label.toLowerCase())}
         ${items.map((e, i) => {
           const t = entryTitle(sec, e);
           return `
@@ -716,6 +724,7 @@ function renderInfo() {
     <details class="card" data-card="${key}" ${isOpen(key) ? 'open' : ''}>
       ${cardHead(cfg.icon, cfg.color, cfg.label, n)}
       <div class="card-body">
+        ${n ? '' : emptyNote(cfg.label.toLowerCase())}
         <textarea data-path="${key}" rows="${cfg.rows}">${esc(state[key])}</textarea>
         <p class="field-hint">${cfg.hint}</p>
       </div>
@@ -817,49 +826,75 @@ function mergeParsed(r) {
   return added;
 }
 
-async function runExtract() {
-  const text = $('#pasteBox').value;
-  if (!pendingFiles.length && !text.trim()) return toast('Add a file or type something first', true);
-  const btn = $('#extractBtn'), label = $('.btn-label', btn), ic = $('.btn-icon', btn), errBox = $('#importErrors');
-  const fd = new FormData();
-  pendingFiles.forEach(f => fd.append('files', f));
-  fd.append('text', text);
-  fd.append('ai', aiInfo.configured && $('#aiSort').checked ? '1' : '0');
+async function runOptimize() {
+  const text = $('#pasteBox').value.trim();
+  // A self-description typed into Summary is raw material too: sort its facts into the sections once.
+  const notes = state.profile.summary.trim();
+  const useNotes = aiInfo.configured && words(notes) >= 20 && state.notesSorted !== notes;
+  const hasNew = pendingFiles.length || text || useNotes;
+  if (!hasNew && !hasAnyInfo()) return toast('Add a file or type a few sentences about yourself first', true);
+
+  const btn = $('#optimizeBtn'), label = $('.btn-label', btn), ic = $('.btn-icon', btn), errBox = $('#importErrors');
+  const busy = msg => { label.textContent = msg; };
   btn.disabled = true;
-  label.textContent = fd.get('ai') === '1' ? `Sorting with ${aiInfo.label}` : 'Reading';
   ic.innerHTML = '<i class="spin"></i>';
   errBox.innerHTML = '';
+  let parts = [], sortedByAI = false;
   try {
-    const res = await fetch('/api/extract', { method: 'POST', body: fd });
-    const data = await res.json().catch(() => ({ error: 'The server sent something unexpected.' }));
-    if (!res.ok) throw new Error(data.error || 'Could not read that.');
-    const totals = {};
-    for (const r of data.results) for (const [k, n] of Object.entries(mergeParsed(r))) totals[k] = (totals[k] || 0) + n;
-    errBox.innerHTML = (data.errors || []).map(e => `<div>${icon('alert', 16, 3)}<span>${esc(e)}</span></div>`).join('');
-    pendingFiles = [];
-    renderFiles();
-    $('#pasteBox').value = '';
-    renderInfo();
-    save();
-    renderPreview();
-    flashPage();
-    const parts = Object.entries(totals).map(([k, n]) => `${n} ${(ENTRY[k] || LISTS[k]).label.toLowerCase()}`);
-    if (parts.length) {
-      const r = btn.getBoundingClientRect();
-      confetti(r.left + r.width / 2, r.top, 160);
-      toast(`${data.ai ? 'AI sorted it. ' : ''}Added ${humanList(parts.slice(0, 3))}${parts.length > 3 ? ' and more' : ''}. Check it over in Your info.`);
-    } else {
-      toast('Read it, but found nothing new to add');
+    if (hasNew) {
+      busy(aiInfo.configured ? `Sorting with ${aiInfo.label}` : 'Reading your info');
+      const fd = new FormData();
+      pendingFiles.forEach(f => fd.append('files', f));
+      fd.append('text', [text, useNotes ? notes : ''].filter(Boolean).join('\n\n'));
+      fd.append('ai', aiInfo.configured ? '1' : '0');
+      const res = await fetch('/api/extract', { method: 'POST', body: fd });
+      const data = await res.json().catch(() => ({ error: 'The server sent something unexpected.' }));
+      if (!res.ok) throw new Error(data.error || 'Could not read that.');
+      const totals = {};
+      for (const r of data.results) for (const [k, n] of Object.entries(mergeParsed(r))) totals[k] = (totals[k] || 0) + n;
+      errBox.innerHTML = (data.errors || []).map(e => `<div>${icon('alert', 16, 2.4)}<span>${esc(e)}</span></div>`).join('');
+      parts = Object.entries(totals).map(([k, n]) => `${n} ${(ENTRY[k] || LISTS[k]).label.toLowerCase()}`);
+      sortedByAI = !!data.ai;
+      if (useNotes) state.notesSorted = notes;
+      pendingFiles = [];
+      renderFiles();
+      $('#pasteBox').value = '';
+      renderInfo();
+      save();
+      renderPreview();
     }
     switchTab('info');
+    let polished = false;
+    if (aiInfo.configured && hasAnyInfo()) {
+      busy(`Rewriting with ${aiInfo.label}`);
+      polished = await aiPolish('all', { quiet: true });
+      if (polished) state.notesSorted = state.profile.summary.trim();  // don't re-sort the AI's own summary next time
+    }
+    flashPage();
+    const r = btn.getBoundingClientRect();
+    if (parts.length || polished) confetti(r.left + r.width / 2, r.top, 160);
+    const added = parts.length ? `Added ${humanList(parts.slice(0, 3))}${parts.length > 3 ? ' and more' : ''}. ` : '';
+    const extra = polished?.added ? ` It added ${polished.added} typical dut${polished.added > 1 ? 'ies' : 'y'} for your roles, so check they're true.` : '';
+    toast(polished ? `${added}Rewritten for ${MODES[state.target].label}.${extra} Fill in anything marked Needs info.`
+      : aiInfo.configured ? `${added}Fill in anything marked Needs info.`
+      : `${added || 'Sorted. '}Connect AI to also rewrite everything.`);
+    if (!sortedByAI && !polished && !parts.length && hasNew) toast('Read it, but found nothing new to add');
   } catch (err) {
-    errBox.innerHTML = `<div>${icon('alert', 16, 3)}<span>${esc(err.message)}</span></div>`;
+    errBox.innerHTML = `<div>${icon('alert', 16, 2.4)}<span>${esc(err.message)}</span></div>`;
     toast(err.message, true);
   } finally {
     btn.disabled = false;
-    ic.innerHTML = icon('sparkle', 18);
-    label.textContent = 'Extract and fill my info';
+    ic.innerHTML = icon('sparkle', 17, 2);
+    label.textContent = 'Optimize my Resume';
+    save();
   }
+}
+
+function hasAnyInfo() {
+  const p = state.profile;
+  return !!(p.name.trim() || p.email.trim() || p.phone.trim() || p.summary.trim()
+    || ENTRY_KEYS.some(k => state[k].some(e => ENTRY[k].heading(e) || ENTRY[k].sub(e) || e.bullets.trim()))
+    || LIST_KEYS.some(k => lines(state[k]).length));
 }
 
 const SAMPLE = `JORDAN RIVERA
@@ -972,7 +1007,9 @@ function renderAIBits() {
   $('#aiBtn').classList.toggle('on', aiInfo.configured);
   $('#aiBtn').hidden = !!aiInfo.locked;  // hosted: the owner's key is used, visitors have nothing to set up
   $('#aiBtnLabel').textContent = aiInfo.configured ? `${aiInfo.label} on` : 'Connect AI';
-  $('#aiSortWrap').hidden = !aiInfo.configured;
+  $('#optimizeNote').textContent = aiInfo.configured
+    ? `Sorts everything into the right sections and rewrites it for your target with ${aiInfo.label}.`
+    : aiInfo.locked ? 'Sorts your info into the right sections.' : 'Sorts your info into the right sections. Connect AI to also rewrite it.';
   const card = $('#infoPanel .ai-card'), html = aiCardHTML();
   if (card && html) card.outerHTML = html;
   else if (card) card.remove();
@@ -1052,9 +1089,10 @@ function aiPayload(scope) {
   };
 }
 
-async function aiPolish(scope) {
+// Returns the AI's result on success (falsy on failure). quiet: the caller shows its own toast.
+async function aiPolish(scope, { quiet = false } = {}) {
   if (!aiInfo.configured) return openAI();
-  if (aiBusy) return;
+  if (aiBusy) return null;
   aiBusy = true;
   renderAIBits();
   const draftBtn = $('[data-draft]');
@@ -1089,18 +1127,18 @@ async function aiPolish(scope) {
     renderInfo();
     save();
     renderPreview();
+    if (quiet) return data;
     flashPage();
     const r = ($('#infoPanel .ai-card') || $('#page')).getBoundingClientRect();
     confetti(r.left + r.width / 2, r.top + 20, 110);
-    const notes = [];
-    if (data.added) notes.push(`added ${data.added} typical dut${data.added > 1 ? 'ies' : 'y'} for your roles, so check they're true`);
-    if (data.restored) notes.push(`kept ${data.restored} detail${data.restored > 1 ? 's' : ''} the AI tried to drop`);
     toast(scope === 'summary' ? 'AI wrote your summary from your whole resume. Tweak it so it sounds like you.'
-      : `Polished for ${MODES[state.target].label}${notes.length ? `. It ${notes.join(' and ')}` : ''}. Undo brings back your version.`);
+      : `Rewritten for ${MODES[state.target].label}. Undo brings back your version.`);
+    return data;
   } catch (err) {
     aiBusy = false;
     renderInfo();
     toast(err.message, true);
+    return null;
   }
 }
 
@@ -1217,12 +1255,12 @@ $('#fileList').addEventListener('click', e => {
   const b = e.target.closest('[data-rm]');
   if (b) { pendingFiles.splice(+b.dataset.rm, 1); renderFiles(); }
 });
-$('#extractBtn').addEventListener('click', runExtract);
-$('#pasteBox').addEventListener('keydown', e => { if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); runExtract(); } });
+$('#optimizeBtn').addEventListener('click', runOptimize);
+$('#pasteBox').addEventListener('keydown', e => { if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); runOptimize(); } });
 $('#sampleBtn').addEventListener('click', () => {
   $('#pasteBox').value = SAMPLE;
   $('#pasteBox').focus();
-  toast('Sample pasted. Hit “Extract and fill my info”.');
+  toast('Sample pasted. Hit “Optimize my Resume”.');
 });
 
 const info = $('#infoPanel');
@@ -1230,6 +1268,8 @@ info.addEventListener('input', e => {
   const path = e.target.dataset.path;
   if (!path) return;
   setPath(path, e.target.value);
+  const need = e.target.closest('.fld')?.querySelector('.need');
+  if (need) need.hidden = !!e.target.value.trim();
   const card = e.target.closest('.entry');
   if (card) {
     const sec = card.dataset.sec;

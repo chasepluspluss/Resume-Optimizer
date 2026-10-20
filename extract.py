@@ -512,8 +512,13 @@ def _freeform(lines, result):
         if not raw:
             continue
         text = BULLET_RE.sub("", raw).strip()
-        for piece in re.split(r"(?<=[.!?])\s+(?=[A-Z])", text):
+        for piece in re.split(r"(?<=[.!?])\s+(?=[A-Z])|,?\s+and\s+(?=I\b)", text):
             piece = piece.strip().rstrip(".")
+            # "I work as a barista at X" -> "barista at X", so the role and organization split cleanly
+            piece = re.sub(r"^(?:hi|hello|hey)\b[,!]?\s*", "", piece, flags=re.I)
+            piece = re.sub(r"^(?:i|we)\s+(?:work|worked|am|was|serve|served|have been)\s+(?:as\s+)?(?:an?\s+|the\s+)?",
+                           "", piece, flags=re.I)
+            piece = re.sub(r"\b(of|at|for)\s+the\s+", r"\1 ", piece)
             if not piece:
                 continue
             key = next((k for k, pat in FREEFORM_RULES if re.search(pat, piece, re.I)), None)
@@ -556,6 +561,9 @@ def parse_resume_text(text):
     result = _empty()
     header = blocks.pop("header")
     if not found:
+        intro = re.search(r"\b(?i:my name is|i am|i'm)\s+([A-Z][a-z'-]+(?:\s+[A-Z][a-z'-]+){1,2})\b", text)
+        if intro:
+            result["profile"]["name"] = intro.group(1)
         leftovers = _parse_header(header[:4], result, max_name_line=2)
         rest = header[4:]
         # Lines in the top block that weren't contact info are real content in free-typed text.

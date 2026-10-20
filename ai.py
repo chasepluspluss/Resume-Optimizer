@@ -8,6 +8,7 @@ When hosted (SHORTLIST_HOSTED=1) only environment variables are used, so the key
 import json
 import os
 import re
+import time
 import urllib.error
 import urllib.request
 
@@ -114,26 +115,33 @@ def chat(messages, settings=None, temperature=0.3, json_mode=False):
         if json_mode and s.get("provider") == "groq":  # Groq's JSON mode guarantees parseable output
             req_body["response_format"] = {"type": "json_object"}
         body = json.dumps(req_body).encode()
-        req = urllib.request.Request(p["url"], body, {"Content-Type": "application/json", "Authorization": f"Bearer {s['key']}"})
-        try:
-            with urllib.request.urlopen(req, timeout=90) as r:
-                data = json.loads(r.read())
-            return data["choices"][0]["message"]["content"] or ""
-        except urllib.error.HTTPError as e:
-            detail = e.read().decode("utf-8", "replace")[:400]
-            low = detail.lower()
-            if e.code in (401, 403) or "api key" in low or "api_key" in low:
-                raise AIError("The API key was rejected. Double-check it in AI settings.")
-            if e.code == 429:
-                raise AIError("Free-tier rate limit reached. Wait a minute and try again.")
-            if e.code == 404 or (e.code == 400 and "model" in low):
-                last = f"{model} isn't available"
-                continue
-            raise AIError(f"{p['label']} returned an error ({e.code}).")
-        except (urllib.error.URLError, TimeoutError) as e:
-            raise AIError(f"Couldn't reach {p['label']}. Check your internet connection. ({getattr(e, 'reason', e)})")
-        except (KeyError, IndexError, ValueError):
-            raise AIError("The AI sent back something unexpected. Try again.")
+        for attempt in range(2):
+            req = urllib.request.Request(p["url"], body, {"Content-Type": "application/json", "Authorization": f"Bearer {s['key']}"})
+            try:
+                with urllib.request.urlopen(req, timeout=90) as r:
+                    data = json.loads(r.read())
+                return data["choices"][0]["message"]["content"] or ""
+            except urllib.error.HTTPError as e:
+                detail = e.read().decode("utf-8", "replace")[:400]
+                low = detail.lower()
+                if e.code in (401, 403) or "api key" in low or "api_key" in low:
+                    raise AIError("The API key was rejected. Double-check it in AI settings.")
+                if e.code == 429:
+                    # Free tiers cap tokens per minute; one short wait usually clears it.
+                    wait = re.match(r"\d+", e.headers.get("retry-after") or "")
+                    wait = int(wait.group(0)) if wait else 10
+                    if attempt == 0 and wait <= 30:
+                        time.sleep(wait + 1)
+                        continue
+                    raise AIError("Free-tier rate limit reached. Wait a minute and try again.")
+                if e.code == 404 or (e.code == 400 and "model" in low):
+                    last = f"{model} isn't available"
+                    break
+                raise AIError(f"{p['label']} returned an error ({e.code}).")
+            except (urllib.error.URLError, TimeoutError) as e:
+                raise AIError(f"Couldn't reach {p['label']}. Check your internet connection. ({getattr(e, 'reason', e)})")
+            except (KeyError, IndexError, ValueError):
+                raise AIError("The AI sent back something unexpected. Try again.")
     raise AIError(f"No usable model found: {last}. Set a model name in AI settings.")
 
 
@@ -161,11 +169,34 @@ def _clean_list(v):
     return [c for c in (_clean(x) for x in (v or [])) if c]
 
 
+# Safety net for AI-sounding words that slip past the prompt.
+SWAPS = {
+    "spearheaded": "led", "spearheading": "leading", "spearhead": "lead", "leveraged": "used", "leveraging": "using",
+    "utilized": "used", "utilizing": "using", "utilize": "use", "fostered": "built", "fostering": "building",
+    "showcased": "showed", "showcasing": "showing", "honed": "sharpened", "meticulously": "carefully",
+    "meticulous": "careful", "seamlessly": "smoothly", "orchestrated": "organized", "cultivated": "built",
+    "pivotal": "key", "instrumental": "key",
+}
+SWAP_RE = re.compile(r"\b(" + "|".join(SWAPS) + r")\b", re.I)
+
+
+def _humanize(s):
+    s = re.sub(r"\b(?:successfully|effectively)\s+", "", s, flags=re.I)
+    s = SWAP_RE.sub(lambda m: (lambda r: r[0].upper() + r[1:] if m.group(0)[0].isupper() else r)(SWAPS[m.group(0).lower()]), s)
+    s = s.replace(";", ",")
+    return s[:1].upper() + s[1:]
+
+
 # --------------------------------------------------------------------------- sorting raw text
 
-STRUCTURE_SYSTEM = """You turn raw resume material (old resumes, notes, activity lists, transcripts) into structured JSON.
+STRUCTURE_SYSTEM = """You turn raw resume material (old resumes, notes, activity lists, transcripts, or a single paragraph
+where someone describes themselves) into structured JSON.
 Rules:
 - Use only facts in the material. Never invent names, dates, numbers, schools, employers or skills.
+- A self-description paragraph usually mentions many things at once. Pull every job, club, sport, leadership role,
+  volunteer role, project, award, honor, certification, course, test score and skill out into its own section.
+- If the material says nothing for a section, return an empty list for it. Do not fill gaps with guesses.
+- profile.summary: leave "" unless the material contains an actual career goal or objective statement.
 - Put each item in the best section: education, experience (paid work and internships), activities
   (clubs, sports, leadership, arts), volunteer (unpaid service), projects (personal, class or research projects).
 - Split combined lines into proper fields. Dates like "Jun 2024 - Present". Leave a field "" when unknown.
@@ -215,71 +246,94 @@ def structure(text):
 # ~6-8 second first scans focused on titles, organizations, dates and education (Ladders eye-tracking);
 # employers screening for problem-solving, teamwork, communication and work ethic (NACE Job Outlook);
 # quantified accomplishments over duties; and depth, commitment and impact for admissions.
-BASE_RULES = """You are a senior resume writer and former campus recruiter. You turn rough resume content into polished,
-professional, specific writing that wins interviews and acceptances.
+BASE_RULES = """You are a senior resume writer and former campus recruiter editing a real person's resume by hand. You turn
+rough notes into polished, specific, substantial writing that wins interviews and acceptances, and that reads like a
+skilled human wrote it.
 
 What the research says works, so apply it:
-1. Recruiters give a resume a 6 to 8 second first scan, mostly on titles, organizations, dates and education. Make
-   every line scannable and put the most impressive, most relevant words first.
-2. Accomplishments beat duties. Write each bullet as strong action verb + what was done + scale or result.
+1. Recruiters give a resume a 6 to 8 second first scan, mostly on titles, organizations, dates and education. Put the
+   most impressive, most relevant words at the front of every line.
+2. Accomplishments beat duties. Each bullet shows what was done, how (tools, methods, setting, who was involved) and
+   why it mattered (result, scale, who benefited).
 3. Employers look hardest for problem-solving, teamwork, communication, work ethic, initiative, analytical and
-   technical skills. Show these through evidence in the bullets, never as empty adjectives.
+   technical skills. Prove these with evidence in the bullets, never as adjectives.
 4. Use the vocabulary of the target field and role so keyword screening (ATS) matches.
-5. Choose precise, vivid verbs and synonyms. Never start two bullets in the same entry with the same verb.
-   Replace weak wording (helped, worked on, responsible for, did, got, various, things, stuff).
+
+Length and depth (do not just retype the input, rebuild it):
+- Each entry gets 3 to 5 bullets when the facts allow. Expand thin bullets with the context the facts imply: the
+  setting, the audience, the tools, the purpose. Split a bullet that packs in two accomplishments.
+- Bullets run about 14 to 28 words. One sentence, no ending period, no "I" or "my".
+- Past tense for finished roles, present tense for current ones (dates ending in Present or Current).
+
+Sound like an expert human, not an AI:
+- Plain, confident, concrete language. Specific nouns and numbers over abstract claims.
+- Vary rhythm: mix shorter and longer bullets, and vary how bullets open (some lead with the result, most with the
+  action). Never start two bullets in the same entry with the same verb.
+- Pick precise verbs that fit what happened: led, directed, organized, coordinated, chaired, recruited, mentored,
+  trained, taught, built, designed, launched, founded, wrote, produced, developed, created, cut, raised, grew,
+  increased, reduced, streamlined, redesigned, resolved, assisted, served, guided, analyzed, tested, measured,
+  researched, tracked, evaluated, presented, pitched, negotiated, managed, planned, scheduled, handled, prepared.
+- Never use these AI-sounding words and phrases: spearheaded, leveraged, utilized, utilize, synergy, dynamic,
+  passionate, results-driven, detail-oriented, go-getter, fostered, fostering, showcasing, showcased, cutting-edge,
+  robust, seamless, seamlessly, delve, tapestry, testament, honed, adept, meticulous, meticulously, proven track
+  record, in today's, a wide range of, various, diverse array, cultivated, orchestrated, pivotal, instrumental,
+  invaluable, multifaceted, navigate, navigating, elevate, empower, journey, realm, landscape.
+- Never tack a trailing "-ing" clause onto the end of a bullet (", ensuring...", ", demonstrating...",
+  ", highlighting...", ", resulting in..."). State the result directly instead.
+- No strings of three adjectives, no filler like "successfully" or "effectively", no em dashes, no semicolons.
 
 Hard rules:
-- ACCOUNT FOR EVERYTHING. Every fact in the input must still be in your output, reworded: every entry, number,
-  name, tool, course, score, award, certification, hour count and date. If you merge two bullets, keep both facts.
+- ACCOUNT FOR EVERYTHING. Every fact in the input must still be in your output: every entry, number, name, tool,
+  course, score, award, certification, hour count and date. If you merge two bullets, keep both facts.
   Write numbers exactly as given (keep "$3,200", "80+", "120+ hours").
 - Never invent numbers, results, employers, titles, dates, awards, tools, scores or courses.
-- Bullets: one line, about 10 to 24 words, start with a strong action verb, past tense for finished roles and present
-  tense for current ones (dates ending in Present or Current), no "I" or "my", no ending period.
 - Enrichment is allowed in two places only:
   a) "added": for an entry with fewer than 3 bullets, up to 2 extra bullets describing duties or skills that are
      standard and clearly implied for that exact role and type of organization (a cashier processes payments and
      balances a register; a club treasurer tracks the budget). No numbers, names, tools or outcomes in added bullets.
   b) Skills may include transferable or technical skills that the entries clearly demonstrate.
+- The summary is written fresh from the whole resume. Treat current_summary as raw notes to mine for facts; never
+  reuse its sentences, phrasing or order.
 - "tips": up to 5 short, specific questions about missing details that would make the resume stronger, naming the
   entry, for example "About how many customers did you help per shift at H-E-B?".
-- Never use em dashes. Keep proper names exactly as written. Return only JSON."""
+- Keep proper names exactly as written. Return only JSON."""
 
 TARGET_GUIDES = {
     "internship": """TARGET: INTERNSHIP.
 - Employers choosing between similar students lean hardest on relevant experience, so frame every job, club and class
   project as proof of the skills the target field needs.
 - Bring out technical tools, methods and transferable skills; connect part-time work to professionalism and teamwork.
-- Summary (3 sentences, 50 to 80 words): class level, school and field of study; the strongest relevant experience or
+- Summary (3 to 4 sentences, 65 to 100 words): class level, school and field of study; the strongest relevant experience or
   project with its result; 2 or 3 key skills; the internship goal.""",
     "job": """TARGET: JOB (professional or new-grad role).
 - Hiring managers want impact and scope: lead with results, scale (people, money, volume) and ownership.
 - Mirror the language of the target role so applicant tracking systems match keywords.
 - Professional, confident tone; no student framing unless the person is still in school.
-- Summary (3 to 4 sentences, 55 to 90 words): professional identity and type of experience; 2 standout
+- Summary (3 to 4 sentences, 70 to 110 words): professional identity and type of experience; 2 standout
   accomplishments with their numbers; core skills that match the role; what they bring to the team.""",
     "college": """TARGET: COLLEGE ADMISSIONS.
 - Admissions readers look for depth, sustained commitment, leadership growth, initiative and impact on others, not a
   long list. Show how long and how much: years involved, hours per week, people reached, results.
 - Show progression (member to officer to leader), what the student started or changed, and community contribution.
 - Warm but polished tone that sounds like a motivated student, not a corporate executive.
-- Summary (3 sentences, 50 to 80 words): academic strengths and interests, 2 defining commitments or leadership roles
+- Summary (3 to 4 sentences, 65 to 100 words): academic strengths and interests, 2 defining commitments or leadership roles
   with impact, and personal qualities or goals shown by the facts.""",
     "scholarship": """TARGET: SCHOLARSHIP.
 - Committees score academic achievement, leadership, community service and goals. Make each one easy to find.
 - Stress service hours, people helped, honors and the drive behind them; connect activities to future goals.
-- Summary (3 sentences, 50 to 80 words): academic record and honors, leadership and service impact, and the
+- Summary (3 to 4 sentences, 65 to 100 words): academic record and honors, leadership and service impact, and the
   educational or career goal the scholarship would support.""",
     "research": """TARGET: RESEARCH POSITION OR ACADEMIC PROGRAM (CV style).
 - Faculty look for research methods, technical and lab skills, analytical thinking, persistence and outcomes such as
   results, posters, presentations or papers. Name methods, instruments, software, datasets and mentors precisely.
 - Precise, scholarly tone; describe the question, the method and the finding.
-- Summary (3 sentences, 50 to 80 words): academic standing and field, research interests and experience with methods,
+- Summary (3 to 4 sentences, 65 to 100 words): academic standing and field, research interests and experience with methods,
   and technical skills plus the program or lab goal.""",
     "firstjob": """TARGET: FIRST OR PART-TIME JOB.
 - Managers hiring entry-level staff want reliability, work ethic, customer service, teamwork, communication and
   willingness to learn. School, sports, clubs, volunteering and family responsibilities all prove these.
 - Plain, friendly, professional wording; translate school activities into workplace strengths.
-- Summary (2 to 3 sentences, 40 to 70 words): who they are, the strengths their activities prove, and eagerness and
+- Summary (3 sentences, 55 to 85 words): who they are, the strengths their activities prove, and eagerness and
   availability for the role.""",
 }
 
@@ -372,7 +426,7 @@ def polish(payload):
     ]
     data = _json(chat(messages, temperature=0.5, json_mode=True))
 
-    result = {"summary": _clean(data.get("summary"))}
+    result = {"summary": _humanize(_clean(data.get("summary")))}
     if scope == "summary":
         return result
 
@@ -409,6 +463,10 @@ def polish(payload):
         restored += n
         result[k] = new or orig
 
+    for row in result["education"] + [r for rows in result["sections"].values() for r in rows]:
+        row["bullets"] = [_humanize(b) for b in row["bullets"]]
+    for k in lists:
+        result[k] = [_humanize(x) for x in result[k]]
     result["tips"] = _clean_list(data.get("tips"))[:5]
     result["restored"], result["added"] = restored, added
     return result
