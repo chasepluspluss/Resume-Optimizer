@@ -1,0 +1,15 @@
+services:
+  - type: web
+    name: shortlist
+    runtime: python
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn app:app --bind 0.0.0.0:$PORT --workers 1 --threads 4 --timeout 120
+    envVars:
+      - key: SHORTLIST_HOSTED
+        value: "1"
+      - key: AI_PROVIDER
+        value: groq
+      # Render asks you for this value when you create the service. It is stored as a secret, never in the code.
+      - key: GROQ_API_KEY
+        sync: false
