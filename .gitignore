@@ -1,0 +1,10 @@
+# Secrets: never upload
+ai_settings.json
+.env
+
+# Local stuff
+.venv/
+__pycache__/
+*.pyc
+*.docx
+*.pdf
