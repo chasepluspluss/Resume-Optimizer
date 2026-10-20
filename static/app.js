@@ -478,7 +478,7 @@ function countTo(target) {
   if (calm || from === target) { el.textContent = target; return; }
   const t0 = performance.now();
   const step = now => {
-    const k = Math.min(1, (now - t0) / 500), eased = 1 - Math.pow(1 - k, 3);
+    const k = Math.max(0, Math.min(1, (now - t0) / 500)), eased = 1 - Math.pow(1 - k, 3);
     const live = $('#scoreNum');
     if (live) live.textContent = Math.round(from + (target - from) * eased);
     if (k < 1) requestAnimationFrame(step);
@@ -489,6 +489,7 @@ function countTo(target) {
 // ------------------------------------------------------------------ rendering: targets
 
 function renderTargets() {
+  document.body.dataset.target = state.target;  // drives the UI accent color
   $('#targetGrid').innerHTML = Object.entries(MODES).map(([k, m]) => `
     <button class="target ${state.target === k ? 'active' : ''}" data-target="${k}" type="button">
       <div class="t-name">${m.label}</div>
