@@ -19,6 +19,15 @@ PORT = int(os.environ.get("PORT", 5050))
 
 app = Flask(__name__, static_folder=os.path.join(BASE, "static"), static_url_path="/static")
 app.config["MAX_CONTENT_LENGTH"] = 25 * 1024 * 1024
+app.config["SEND_FILE_MAX_AGE_DEFAULT"] = 0
+
+
+@app.after_request
+def no_stale_pages(resp):
+    # Browsers must re-check the page, CSS and JS every load, so a new deploy shows up right away.
+    if request.path == "/" or request.path.startswith("/static/"):
+        resp.headers["Cache-Control"] = "no-cache"
+    return resp
 
 # Per-visitor cap on AI calls so a public site can't burn through the free quota.
 AI_LIMIT = int(os.environ.get("AI_LIMIT_PER_10_MIN", 20))
