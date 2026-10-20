@@ -20,7 +20,7 @@ AFTER_PBDR = ("w:shd", "w:tabs", "w:suppressAutoHyphens", "w:kinsoku", "w:wordWr
               "w:cnfStyle", "w:rPr", "w:sectPr", "w:pPrChange")
 
 
-def _hex(color, fallback="E8553D"):
+def _hex(color, fallback="1A1A1A"):
     c = (color or "").lstrip("#")
     return c.upper() if re.fullmatch(r"[0-9a-fA-F]{6}", c) else fallback
 

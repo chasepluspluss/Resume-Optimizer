@@ -176,7 +176,7 @@ const LISTS = {
 const LIST_KEYS = Object.keys(LISTS);
 
 const TEMPLATES = [['clean', 'Clean'], ['classic', 'Classic'], ['bold', 'Bold'], ['minimal', 'Minimal']];
-const ACCENTS = [['#2250FF', 'Electric'], ['#E8553D', 'Coral'], ['#12A37A', 'Emerald'], ['#F08A24', 'Tangerine'], ['#D6336C', 'Raspberry'], ['#2B2B2B', 'Graphite']];
+const ACCENTS = [['#1A1A1A', 'Black'], ['#2250FF', 'Electric'], ['#E8553D', 'Coral'], ['#12A37A', 'Emerald'], ['#F08A24', 'Tangerine'], ['#D6336C', 'Raspberry'], ['#2B2B2B', 'Graphite']];
 const FONTS = {
   sans: ['Sans', "'Inter', Arial, sans-serif"],
   serif: ['Serif', "'Source Serif 4', Georgia, serif"],
@@ -195,7 +195,7 @@ function blank() {
     profile: { name: '', email: '', phone: '', location: '', links: '', summary: '' },
     education: [], experience: [], activities: [], volunteer: [], projects: [],
     skills: '', awards: '', certifications: '', coursework: '', tests: '',
-    design: { template: 'clean', accent: '#2250FF', font: 'sans', size: 10.5, gpa: 'auto', strengthen: true, fit: true },
+    design: { template: 'clean', accent: '#1A1A1A', font: 'sans', size: 10.5, gpa: 'auto', strengthen: true, fit: true },
   };
 }
 
@@ -210,7 +210,9 @@ function load() {
     const raw = localStorage.getItem(STORE_KEY);
     if (!raw) return null;
     const saved = JSON.parse(raw), base = blank();
-    return { ...base, ...saved, profile: { ...base.profile, ...saved.profile }, design: { ...base.design, ...saved.design } };
+    const design = { ...base.design, ...saved.design };
+    if (!design.accentChosen) design.accent = base.design.accent;  // old saves got a colored default; black is the new start
+    return { ...base, ...saved, profile: { ...base.profile, ...saved.profile }, design };
   } catch { return null; }
 }
 
@@ -651,7 +653,9 @@ function aiCardHTML() {
     <div class="ai-card-text"><strong>${aiBusy ? `Polishing with ${esc(aiInfo.label)}` : 'Polish with AI'}</strong>
       <small>${aiBusy ? 'Rewriting your summary, bullets and skills. This takes a few seconds.' : `Rewrites your summary and bullets for ${esc(mode)}, tidies skills and puts the most relevant entries first. Nothing gets made up.`}</small></div>
     <div class="ai-card-actions">${state.aiUndo && !aiBusy ? '<button class="btn ghost" type="button" data-ai-undo>Undo</button>' : ''}
-      <button class="btn primary" type="button" data-ai-polish ${aiBusy ? 'disabled' : ''}>Polish</button></div></div>`;
+      <button class="btn primary" type="button" data-ai-polish ${aiBusy ? 'disabled' : ''}>Polish</button></div>
+    ${state.aiTips?.length && !aiBusy ? `<div class="ai-tips"><b>Answer these to make it even stronger</b>
+      <ul>${state.aiTips.map(t => `<li>${esc(t)}</li>`).join('')}</ul></div>` : ''}</div>`;
 }
 
 function renderInfo() {
@@ -1036,16 +1040,15 @@ async function saveAI() {
 }
 
 function aiPayload(scope) {
-  const mode = MODES[state.target];
   const sections = {};
   for (const sec of ENTRY_KEYS.filter(k => k !== 'education')) {
-    sections[sec] = state[sec].map((e, i) => ({ id: `${sec}:${i}`, title: e.title, org: e.org, dates: e.dates, bullets: lines(e.bullets) }))
+    sections[sec] = state[sec].map((e, i) => ({ id: `${sec}:${i}`, title: e.title, org: e.org, dates: e.dates, location: e.location, bullets: lines(e.bullets) }))
       .filter(x => x.title || x.org || x.bullets.length);
   }
   return {
-    scope, target: mode.label, guidance: mode.how, role: state.role, summary: state.profile.summary,
-    education: state.education.map(e => ({ school: e.school, degree: e.degree, dates: e.dates, gpa: e.gpa, details: lines(e.bullets) })),
-    sections, skills: lines(state.skills), awards: lines(state.awards),
+    scope, target_key: state.target, role: state.role, summary: state.profile.summary,
+    education: state.education.map((e, i) => ({ id: `education:${i}`, school: e.school, degree: e.degree, dates: e.dates, gpa: e.gpa, details: lines(e.bullets) })),
+    sections, ...Object.fromEntries(LIST_KEYS.map(k => [k, lines(k === 'coursework' ? state[k].replace(/[,;]/g, '\n') : state[k])])),
   };
 }
 
@@ -1061,8 +1064,15 @@ async function aiPolish(scope) {
     const data = await res.json().catch(() => ({ error: 'The server sent something unexpected.' }));
     if (!res.ok) throw new Error(data.error || 'AI polish failed.');
 
-    state.aiUndo = JSON.stringify({ summary: state.profile.summary, skills: state.skills, ...Object.fromEntries(ENTRY_KEYS.map(k => [k, state[k]])) });
+    state.aiUndo = JSON.stringify({ summary: state.profile.summary, aiTips: state.aiTips || [],
+      ...Object.fromEntries([...ENTRY_KEYS, ...LIST_KEYS].map(k => [k, state[k]])) });
     if (data.summary) state.profile.summary = data.summary;
+    for (const r of data.education || []) {
+      const e = state.education[+String(r.id).split(':')[1]];
+      if (e && r.bullets) e.bullets = r.bullets.join('\n');
+    }
+    for (const k of LIST_KEYS) if (data[k]?.length) state[k] = (k === 'coursework' ? [data[k].join(', ')] : data[k]).join('\n');
+    if (scope !== 'summary') state.aiTips = data.tips || [];
     for (const [sec, rows] of Object.entries(data.sections || {})) {
       const arr = state[sec], used = new Set(), next = [];
       for (const r of rows) {
@@ -1075,7 +1085,6 @@ async function aiPolish(scope) {
       arr.forEach((e, i) => { if (!used.has(i)) next.push(e); });
       state[sec] = next;
     }
-    if (data.skills?.length) state.skills = data.skills.join('\n');
     aiBusy = false;
     renderInfo();
     save();
@@ -1083,7 +1092,11 @@ async function aiPolish(scope) {
     flashPage();
     const r = ($('#infoPanel .ai-card') || $('#page')).getBoundingClientRect();
     confetti(r.left + r.width / 2, r.top + 20, 110);
-    toast(scope === 'summary' ? 'AI wrote your summary. Tweak it so it sounds like you.' : 'Polished. Read it over, and hit Undo if you liked yours better.');
+    const notes = [];
+    if (data.added) notes.push(`added ${data.added} typical dut${data.added > 1 ? 'ies' : 'y'} for your roles, so check they're true`);
+    if (data.restored) notes.push(`kept ${data.restored} detail${data.restored > 1 ? 's' : ''} the AI tried to drop`);
+    toast(scope === 'summary' ? 'AI wrote your summary from your whole resume. Tweak it so it sounds like you.'
+      : `Polished for ${MODES[state.target].label}${notes.length ? `. It ${notes.join(' and ')}` : ''}. Undo brings back your version.`);
   } catch (err) {
     aiBusy = false;
     renderInfo();
@@ -1095,8 +1108,8 @@ function aiUndo() {
   if (!state.aiUndo) return;
   const snap = JSON.parse(state.aiUndo);
   state.profile.summary = snap.summary;
-  state.skills = snap.skills;
-  ENTRY_KEYS.forEach(k => { state[k] = snap[k]; });
+  state.aiTips = snap.aiTips;
+  [...ENTRY_KEYS, ...LIST_KEYS].forEach(k => { if (snap[k] !== undefined) state[k] = snap[k]; });
   state.aiUndo = null;
   renderInfo();
   save();
@@ -1311,6 +1324,7 @@ design.addEventListener('click', e => {
   const b = e.target.closest('[data-set]');
   if (!b) return;
   state.design[b.dataset.set] = b.dataset.val;
+  if (b.dataset.set === 'accent') state.design.accentChosen = true;
   renderDesign();
   save();
   renderPreview();

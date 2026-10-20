@@ -337,7 +337,7 @@ textarea::placeholder, input::placeholder { color: var(--faint); }
 
 /* ---------- resume (shared by preview + print) ---------- */
 .rz {
-  --accent: #2E5BFF; --fs: 10.5pt; --gap: 1; --lh: 1.32; --rz-ink: #1F1F1F; --rz-muted: #5F5F5F;
+  --accent: #1A1A1A; --fs: 10.5pt; --gap: 1; --lh: 1.32; --rz-ink: #1F1F1F; --rz-muted: #5F5F5F;
   font-family: var(--rz-font, 'Inter', Arial, sans-serif); font-size: var(--fs); line-height: var(--lh); letter-spacing: 0;
   color: var(--rz-ink); -webkit-print-color-adjust: exact; print-color-adjust: exact;
 }
@@ -398,6 +398,11 @@ textarea::placeholder, input::placeholder { color: var(--faint); }
 .ai-card-text small { display: block; font-size: 12.5px; color: var(--ink-2); line-height: 1.45; margin-top: 1px; }
 .ai-card-actions { display: flex; gap: 6px; flex: none; }
 .ai-card .btn { height: 32px; font-size: 12.5px; }
+.ai-card { flex-wrap: wrap; }
+.ai-tips { flex-basis: 100%; background: var(--surface); border: 1px solid #D9E1FF; border-radius: 10px; padding: 10px 12px; font-size: 12.5px; color: var(--ink-2); }
+.ai-tips b { font-weight: 600; color: var(--ink); }
+.ai-tips ul { margin: 6px 0 0; padding-left: 18px; display: grid; gap: 3px; }
+.ai-tips li::marker { color: var(--blue); }
 .ai-card.busy { animation: shimmer 1.6s ease-in-out infinite; }
 @keyframes shimmer { 50% { background: #E2E9FF; } }
 
