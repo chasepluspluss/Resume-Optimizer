@@ -5,53 +5,14 @@ const $$ = (s, el = document) => [...el.querySelectorAll(s)];
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const calm = matchMedia('(prefers-reduced-motion: reduce)').matches;
 
-// ------------------------------------------------------------------ icons
-
-const ICONS = {
-  rocket: '<path d="M4.5 16.5c-1.5 1.26-2 5-2 5s3.74-.5 5-2c.71-.84.7-2.13-.09-2.91a2.18 2.18 0 0 0-2.91-.09z"/><path d="M12 15l-3-3a22 22 0 0 1 2-3.95A12.88 12.88 0 0 1 22 2c0 2.72-.78 7.5-6 11a22.35 22.35 0 0 1-4 2z"/><path d="M9 12H4s.55-3.03 2-4c1.62-1.08 5 0 5 0M12 15v5s3.03-.55 4-2c1.08-1.62 0-5 0-5"/>',
-  briefcase: '<rect x="2.5" y="7" width="19" height="13.5" rx="2"/><path d="M8 7V5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M2.5 13h19"/>',
-  cap: '<path d="M22 9.5L12 4.5 2 9.5l10 5 10-5z"/><path d="M6 11.5v5c3 2.8 9 2.8 12 0v-5M22 9.5v5"/>',
-  medal: '<circle cx="12" cy="9" r="6"/><path d="M8.5 14L7 22l5-3 5 3-1.5-8"/><path d="M12 6.5v5M10 8.5h4"/>',
-  flask: '<path d="M9 3h6M10 3v6L4.5 19a1.5 1.5 0 0 0 1.3 2.2h12.4a1.5 1.5 0 0 0 1.3-2.2L14 9V3"/><path d="M7.2 15h9.6"/>',
-  sprout: '<path d="M7 21h10M12 21v-9M12 12c0-4.4 3-6.6 7.5-6.6 0 4.4-3 6.6-7.5 6.6zM12 14.5c0-3.3-2.3-5.5-6.5-5.5 0 3.3 2.3 5.5 6.5 5.5z"/>',
-  user: '<circle cx="12" cy="8" r="4"/><path d="M4 21c1.4-4 4.4-6 8-6s6.6 2 8 6"/>',
-  star: '<path d="M12 2.8l2.9 5.9 6.5.9-4.7 4.6 1.1 6.4L12 17.6l-5.8 3 1.1-6.4-4.7-4.6 6.5-.9z"/>',
-  heart: '<path d="M20.4 4.9a5.2 5.2 0 0 0-7.4 0L12 5.9l-1-1a5.2 5.2 0 0 0-7.4 7.4l1 1L12 20.6l7.4-7.3 1-1a5.2 5.2 0 0 0 0-7.4z"/>',
-  code: '<path d="M16 18l6-6-6-6M8 6l-6 6 6 6M14 4l-4 16"/>',
-  bolt: '<path d="M13 2L3.5 14H12l-1 8 9.5-12H12l1-8z"/>',
-  doc: '<path d="M14 2.5H6.5a2 2 0 0 0-2 2v15a2 2 0 0 0 2 2h11a2 2 0 0 0 2-2V8z"/><path d="M14 2.5V8h5.5M9 15l2 2 4-4"/>',
-  book: '<path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20V2.5H6.5A2.5 2.5 0 0 0 4 5v14.5z"/><path d="M4 19.5A2.5 2.5 0 0 0 6.5 22H20v-5"/>',
-  pencil: '<path d="M16.5 3.5l4 4L8 20H4v-4z"/><path d="M13.5 6.5l4 4"/>',
-  eye: '<path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/>',
-  eyeOff: '<path d="M3 3l18 18M10.6 5.1A10.7 10.7 0 0 1 12 5c6.4 0 10 7 10 7a17.6 17.6 0 0 1-3.2 4.1M6.6 6.6C3.9 8.4 2 12 2 12s3.6 7 10 7a9.7 9.7 0 0 0 5.4-1.6M9.9 9.9a3 3 0 0 0 4.2 4.2"/>',
-  up: '<path d="M12 19V5M6 11l6-6 6 6"/>',
-  down: '<path d="M12 5v14M6 13l6 6 6-6"/>',
-  trash: '<path d="M4 7h16M10 11v6M14 11v6M5.5 7l1 13a1.5 1.5 0 0 0 1.5 1.5h8a1.5 1.5 0 0 0 1.5-1.5l1-13M9 7V4h6v3"/>',
-  grip: '<circle cx="9" cy="6" r="1.3"/><circle cx="15" cy="6" r="1.3"/><circle cx="9" cy="12" r="1.3"/><circle cx="15" cy="12" r="1.3"/><circle cx="9" cy="18" r="1.3"/><circle cx="15" cy="18" r="1.3"/>',
-  plus: '<path d="M12 5v14M5 12h14"/>',
-  sparkle: '<path d="M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9z"/><path d="M19 15.5l.8 2 2 .8-2 .8-.8 2-.8-2-2-.8 2-.8z"/>',
-  check: '<path d="M5 12.5l4.5 4.5L19 7.5"/>',
-  alert: '<path d="M12 7v6M12 17h.01"/>',
-  arrow: '<path d="M5 12h14M13 6l6 6-6 6"/>',
-  file: '<path d="M14 2.5H6.5a2 2 0 0 0-2 2v15a2 2 0 0 0 2 2h11a2 2 0 0 0 2-2V8z"/><path d="M14 2.5V8h5.5"/>',
-  x: '<path d="M6 6l12 12M18 6L6 18"/>',
-  chevron: '<path d="M6 9l6 6 6-6"/>',
-  download: '<path d="M12 4v11m0 0l-4.5-4.5M12 15l4.5-4.5M5 20h14"/>',
-  upload: '<path d="M12 16V4m0 0L7.5 8.5M12 4l4.5 4.5M4.5 14.5V18a2 2 0 0 0 2 2h11a2 2 0 0 0 2-2v-3.5"/>',
-};
-const icon = (name, size = 18, sw = 1.9) =>
-  `<svg class="i" viewBox="0 0 24 24" width="${size}" height="${size}" fill="none" stroke="currentColor" stroke-width="${sw}" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICONS[name]}</svg>`;
-
 // ------------------------------------------------------------------ configuration
-
-const COLORS = { blue: '#2E5BFF', lime: '#4D9F0A', sun: '#E08A00', pink: '#E0337A', mint: '#0E9F8E', coral: '#F2541B' };
 
 const MODES = {
   internship: {
-    label: 'Internship', icon: 'rocket', tile: COLORS.blue, tileInk: '#fff',
+    label: 'Internship',
     desc: 'Education and projects first',
     how: 'Education leads with GPA and relevant coursework, then experience and projects that show what you can already do.',
-    order: ['summary', 'education', 'experience', 'projects', 'activities', 'volunteer', 'skills', 'certifications', 'awards'],
+    order: ['education', 'experience', 'projects', 'activities', 'volunteer', 'skills', 'certifications', 'awards'],
     titles: { activities: 'Leadership & Activities' },
     gpa: 'show', coursework: true, maxBullets: 4,
     checks(c, add) {
@@ -62,20 +23,19 @@ const MODES = {
     },
   },
   job: {
-    label: 'Job', icon: 'briefcase', tile: COLORS.lime, tileInk: '#101014',
+    label: 'Job',
     desc: 'Experience first, results up front',
-    how: 'A short summary up top, then work experience and skills. Education moves down and GPA only shows if it’s 3.5 or higher.',
-    order: ['summary', 'experience', 'projects', 'skills', 'certifications', 'education', 'activities', 'volunteer', 'awards'],
+    how: 'Work experience and skills lead. Education moves down and GPA only shows if it’s 3.5 or higher.',
+    order: ['experience', 'projects', 'skills', 'certifications', 'education', 'activities', 'volunteer', 'awards'],
     titles: { experience: 'Professional Experience', activities: 'Leadership' },
     gpa: 'strong', coursework: false, maxBullets: 5,
     checks(c, add) {
-      if (!c.summary) add('warn', 'Add a 2 to 3 line summary. Hiring managers read it first, and “Draft for me” in Your info writes one.');
       if (!c.entries.experience) add('warn', 'Job resumes need work experience. Internships, part-time jobs and freelance all count.');
       if (c.lists.skills < 2) add('tip', 'Add more skills. Applicant tracking systems match keywords from the job post.');
     },
   },
   college: {
-    label: 'College App', icon: 'cap', tile: COLORS.sun, tileInk: '#101014',
+    label: 'College App',
     desc: 'Academics, activities, honors',
     how: 'Academics and test scores first, then extracurriculars, honors and service. That’s what admissions officers scan for.',
     order: ['education', 'tests', 'activities', 'awards', 'volunteer', 'experience', 'projects', 'skills', 'certifications'],
@@ -90,20 +50,19 @@ const MODES = {
     },
   },
   scholarship: {
-    label: 'Scholarship', icon: 'medal', tile: COLORS.pink, tileInk: '#101014',
+    label: 'Scholarship',
     desc: 'Achievement, service, leadership',
     how: 'Leads with academics and honors, then leadership and service, the things scholarship committees actually score.',
-    order: ['summary', 'education', 'awards', 'activities', 'volunteer', 'experience', 'tests', 'projects', 'skills', 'certifications'],
+    order: ['education', 'awards', 'activities', 'volunteer', 'experience', 'tests', 'projects', 'skills', 'certifications'],
     titles: { activities: 'Leadership & Involvement', volunteer: 'Community Service', awards: 'Honors & Awards' },
     gpa: 'show', coursework: false, maxBullets: 3,
     checks(c, add) {
       if (!c.lists.awards) add('warn', 'Scholarship committees look for honors first. Add any awards or recognition.');
       if (!c.entries.volunteer) add('tip', 'Add community service with hours. Many scholarships score service directly.');
-      if (!c.summary) add('tip', 'A short summary of your goals helps committees connect the dots.');
     },
   },
   research: {
-    label: 'Research', icon: 'flask', tile: COLORS.mint, tileInk: '#101014',
+    label: 'Research',
     desc: 'Academic CV style',
     how: 'CV style: education, research and projects, then relevant experience, honors and technical skills. Allowed to run long.',
     order: ['education', 'projects', 'experience', 'awards', 'skills', 'certifications', 'activities', 'volunteer', 'tests'],
@@ -116,14 +75,13 @@ const MODES = {
     },
   },
   firstjob: {
-    label: 'First Job', icon: 'sprout', tile: COLORS.coral, tileInk: '#101014',
+    label: 'First Job',
     desc: 'Part-time and entry level',
     how: 'Leads with strengths and skills, then any work, service and activities. Perfect when your work history is short.',
-    order: ['summary', 'skills', 'experience', 'volunteer', 'activities', 'education', 'certifications', 'awards', 'projects'],
+    order: ['skills', 'experience', 'volunteer', 'activities', 'education', 'certifications', 'awards', 'projects'],
     titles: { skills: 'Skills & Strengths', experience: 'Experience', activities: 'Activities' },
     gpa: 'strong', coursework: false, maxBullets: 3,
     checks(c, add) {
-      if (!c.summary) add('tip', 'Add a friendly two-line summary that mentions reliability and availability.');
       if (c.lists.skills < 2) add('warn', 'Add skills: customer service, teamwork, cash handling, languages, software.');
       if (!c.lists.certifications) add('tip', 'Certifications like CPR, First Aid or a food handler card help for entry-level jobs.');
     },
@@ -131,35 +89,35 @@ const MODES = {
 };
 
 const DEFAULT_TITLES = {
-  summary: 'Summary', education: 'Education', experience: 'Experience', activities: 'Activities & Leadership',
+  education: 'Education', experience: 'Experience', activities: 'Activities & Leadership',
   volunteer: 'Volunteer Experience', projects: 'Projects', skills: 'Skills', awards: 'Awards & Honors',
   certifications: 'Certifications', tests: 'Test Scores', coursework: 'Relevant Coursework',
 };
 
 const ENTRY = {
   education: {
-    label: 'Education', icon: 'cap', color: COLORS.sun, noun: 'school', heading: e => e.school, sub: e => e.degree,
+    label: 'Education', noun: 'school', heading: e => e.school, sub: e => e.degree,
     fields: [['school', 'School', 'Lincoln High School'], ['degree', 'Degree or program', 'High School Diploma'],
       ['dates', 'Dates', 'Aug 2022 – May 2026'], ['location', 'Location', 'Austin, TX'], ['gpa', 'GPA', '3.92 / 4.0']],
     bullets: 'Details like honors or focus areas, one per line',
   },
   experience: {
-    label: 'Work Experience', icon: 'briefcase', color: COLORS.blue, noun: 'job', heading: e => e.title, sub: e => e.org,
+    label: 'Work Experience', noun: 'job', heading: e => e.title, sub: e => e.org,
     fields: [['title', 'Role', 'Sales Associate'], ['org', 'Company', 'Target'], ['dates', 'Dates', 'Jun 2024 – Present'], ['location', 'Location', 'Austin, TX']],
     bullets: 'What you did, one per line. Start with a verb and add numbers.',
   },
   activities: {
-    label: 'Extracurriculars & Leadership', icon: 'star', color: COLORS.pink, noun: 'activity', heading: e => e.title, sub: e => e.org,
+    label: 'Extracurriculars & Leadership', noun: 'activity', heading: e => e.title, sub: e => e.org,
     fields: [['title', 'Role', 'President'], ['org', 'Club, team or org', 'Robotics Club'], ['dates', 'Dates or grades', 'Grades 10–12'], ['location', 'Location or hours', '6 hrs/week']],
     bullets: 'Your impact, one per line: members led, money raised, results',
   },
   volunteer: {
-    label: 'Volunteer & Service', icon: 'heart', color: COLORS.mint, noun: 'role', heading: e => e.title, sub: e => e.org,
+    label: 'Volunteer & Service', noun: 'role', heading: e => e.title, sub: e => e.org,
     fields: [['title', 'Role', 'Volunteer Tutor'], ['org', 'Organization', 'Austin Public Library'], ['dates', 'Dates', '2022 – Present'], ['location', 'Location or hours', '120+ hours']],
     bullets: 'What you did, one per line',
   },
   projects: {
-    label: 'Projects & Research', icon: 'code', color: COLORS.coral, noun: 'project', heading: e => e.title, sub: e => e.org,
+    label: 'Projects & Research', noun: 'project', heading: e => e.title, sub: e => e.org,
     fields: [['title', 'Project', 'Budget Buddy'], ['org', 'Context or tools', 'Personal · React, Firebase'], ['dates', 'Dates', '2024'], ['location', 'Link (optional)', 'github.com/you/budget']],
     bullets: 'What it does and what you achieved, one per line',
   },
@@ -167,11 +125,11 @@ const ENTRY = {
 const ENTRY_KEYS = Object.keys(ENTRY);
 
 const LISTS = {
-  skills: { label: 'Skills', icon: 'bolt', color: COLORS.lime, rows: 4, hint: 'One group per line, like “Languages: Python, Java” or “Excel, Canva, Spanish (fluent)”.' },
-  awards: { label: 'Awards & Honors', icon: 'medal', color: COLORS.sun, rows: 4, hint: 'One per line, like “National Merit Commended Scholar (2025)”.' },
-  certifications: { label: 'Certifications', icon: 'doc', color: COLORS.mint, rows: 2, hint: 'One per line, like “CPR & First Aid, American Red Cross (2024)”.' },
-  coursework: { label: 'Relevant Coursework', icon: 'book', color: COLORS.pink, rows: 2, hint: 'Comma or line separated. Shows under Education when your target uses it.' },
-  tests: { label: 'Test Scores', icon: 'pencil', color: COLORS.coral, rows: 2, hint: 'One per line, like “SAT 1510 (Math 780, EBRW 730)” or “AP Calculus BC: 5”.' },
+  skills: { label: 'Skills', rows: 4, hint: 'One group per line, like “Languages: Python, Java” or “Excel, Canva, Spanish (fluent)”.' },
+  awards: { label: 'Awards & Honors', rows: 4, hint: 'One per line, like “National Merit Commended Scholar (2025)”.' },
+  certifications: { label: 'Certifications', rows: 2, hint: 'One per line, like “CPR & First Aid, American Red Cross (2024)”.' },
+  coursework: { label: 'Relevant Coursework', rows: 2, hint: 'Comma or line separated. Shows under Education when your target uses it.' },
+  tests: { label: 'Test Scores', rows: 2, hint: 'One per line, like “SAT 1510 (Math 780, EBRW 730)” or “AP Calculus BC: 5”.' },
 };
 const LIST_KEYS = Object.keys(LISTS);
 
@@ -319,9 +277,7 @@ function buildModel() {
 
   for (const key of mode.order) {
     const title = mode.titles[key] || DEFAULT_TITLES[key];
-    if (key === 'summary') {
-      if (p.summary.trim()) sections.push({ key, title, type: 'text', text: p.summary.trim().replace(/\s+/g, ' ') });
-    } else if (ENTRY[key]) {
+    if (ENTRY[key]) {
       const items = visible(key).map((e, i) => {
         if (key === 'education') {
           const bullets = lines(e.bullets).map(tidy);
@@ -439,7 +395,6 @@ function scalePreview() {
 
 let insightsOpen = true;
 let shownScore = null;
-let celebrated = false;
 
 function renderInsights() {
   const mode = MODES[state.target], p = state.profile;
@@ -447,7 +402,6 @@ function renderInsights() {
   const add = (level, text) => items.push({ level, text });
 
   const ctx = {
-    summary: !!p.summary.trim(),
     gpa: (visible('education')[0] || {}).gpa || '',
     entries: Object.fromEntries(ENTRY_KEYS.map(k => [k, visible(k).length])),
     lists: Object.fromEntries(LIST_KEYS.map(k => [k, lines(state[k]).length])),
@@ -461,7 +415,7 @@ function renderInsights() {
   const bullets = allEntries.flatMap(e => lines(e.bullets));
   const edu = visible('education')[0];
   const hasContent = allEntries.length || edu;
-  if (!hasContent) add('warn', 'Nothing to show yet. Import a file or type your info in step 2.');
+  if (!hasContent) add('warn', 'Nothing to show yet. Add your info on the Import tab.');
   if (bullets.length) {
     const withNum = bullets.filter(hasNumber).length;
     if (withNum / bullets.length >= 0.4) add('good', `${withNum} of ${bullets.length} bullets show numbers. Results stick.`);
@@ -496,40 +450,25 @@ function renderInsights() {
   const warns = items.filter(i => i.level === 'warn').length, tips = items.filter(i => i.level === 'tip').length;
   const empty = !hasAnyInfo();
   const score = empty ? 0 : Math.max(20, Math.min(100, 100 - warns * 13 - tips * 5));
-  const ring = score >= 85 ? '#16A34A' : score >= 65 ? '#E08A00' : '#E5484D';
   const rank = { warn: 0, tip: 1, good: 2 };
   const sorted = [...items].sort((a, b) => rank[a.level] - rank[b.level]);
   const headline = empty ? 'No info yet' : score >= 95 ? 'Ready to send' : score >= 85 ? 'Looking strong' : score >= 65 ? 'Almost there' : 'Needs a few things';
-  const markIcon = { good: icon('check', 13, 2.6), warn: icon('alert', 13, 2.8), tip: icon('arrow', 13, 2.4) };
-  const C = 2 * Math.PI * 25, prev = shownScore ?? score;
+  const markText = { good: 'Good', warn: 'Fix', tip: 'Tip' };
 
   $('#insights').innerHTML = `
     <div class="ins-top">
-      <div class="score">
-        <svg width="58" height="58" viewBox="0 0 58 58"><circle cx="29" cy="29" r="25" fill="none" stroke="#EEF0F4" stroke-width="5"/>
-        <circle id="scoreRing" cx="29" cy="29" r="25" fill="none" stroke="${ring}" stroke-width="5" stroke-linecap="round" stroke-dasharray="${C}" stroke-dashoffset="${C * (1 - prev / 100)}"/></svg>
-        <b id="scoreNum">${prev}</b>
-      </div>
+      <div class="score"><b id="scoreNum">${shownScore ?? score}</b><span>/100</span></div>
       <div style="flex:1;min-width:0">
-        <div class="ins-title">${empty ? 'Add your info to get a score' : `${headline} for ${esc(mode.label)}`}</div>
-        <div class="ins-sub">${empty ? 'Type a few sentences about yourself or drop in an old resume, then hit Optimize my Resume'
+        <div class="ins-title">${empty ? 'Nothing to score yet' : `${headline} for ${esc(mode.label)}`}</div>
+        <div class="ins-sub">${empty ? 'Write a few sentences about yourself or add an old resume, then press Build my resume.'
           : `${warns ? `${warns} thing${warns > 1 ? 's' : ''} to fix` : 'Nothing to fix'}, ${tips} suggestion${tips === 1 ? '' : 's'}`}</div>
       </div>
-      <button class="btn ins-toggle" id="insToggle" type="button">${insightsOpen ? 'Hide' : 'Show'} tips</button>
+      <button class="link-btn" id="insToggle" type="button">${insightsOpen ? 'Hide notes' : 'Show notes'}</button>
     </div>
     <ul class="ins-list" ${insightsOpen ? '' : 'hidden'}>
-      ${sorted.map((i, n) => `<li class="${i.level}" style="animation-delay:${n * 30}ms"><span class="mark">${markIcon[i.level]}</span><span>${esc(i.text)}</span></li>`).join('')}
+      ${sorted.map(i => `<li class="${i.level}"><span class="mark">${markText[i.level]}</span><span>${esc(i.text)}</span></li>`).join('')}
     </ul>`;
-
-  requestAnimationFrame(() => { const r = $('#scoreRing'); if (r) r.style.strokeDashoffset = C * (1 - score / 100); });
   countTo(score);
-  if (!booted) celebrated = score >= 90;  // don't throw confetti for a score you already had
-  if (booted && hasContent && score >= 90 && !celebrated) {
-    celebrated = true;
-    const r = $('.score').getBoundingClientRect();
-    setTimeout(() => confetti(r.left + r.width / 2, r.top + r.height / 2, 90), 250);
-  }
-  if (score < 85) celebrated = false;
 }
 
 function countTo(target) {
@@ -547,84 +486,15 @@ function countTo(target) {
   requestAnimationFrame(step);
 }
 
-// ------------------------------------------------------------------ confetti
-
-let bits = [], confettiRunning = false;
-function confetti(x = innerWidth / 2, y = innerHeight / 3, n = 140) {
-  if (calm) return;
-  const c = $('#confetti'), ctx = c.getContext('2d'), dpr = devicePixelRatio || 1;
-  c.width = innerWidth * dpr;
-  c.height = innerHeight * dpr;
-  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-  const palette = ['#2E5BFF', '#2E5BFF', '#7FA0FF', '#16A34A', '#F5B400', '#E0337A', '#14B8A6', '#F2541B'];
-  for (let i = 0; i < n; i++) {
-    const a = Math.random() * Math.PI - Math.PI, speed = 6 + Math.random() * 10;
-    bits.push({
-      x, y, vx: Math.cos(a) * speed * 1.2, vy: Math.sin(a) * speed - 3,
-      w: 6 + Math.random() * 7, h: 8 + Math.random() * 9, r: Math.random() * 6.3, vr: (Math.random() - .5) * .35,
-      c: palette[(Math.random() * palette.length) | 0], round: Math.random() < .25, life: 0,
-    });
-  }
-  if (confettiRunning) return;
-  confettiRunning = true;
-  const tick = () => {
-    ctx.clearRect(0, 0, innerWidth, innerHeight);
-    bits = bits.filter(b => b.y < innerHeight + 40 && b.life < 260);
-    for (const b of bits) {
-      b.vy += 0.38; b.vx *= 0.985; b.x += b.vx; b.y += b.vy; b.r += b.vr; b.life++;
-      ctx.save();
-      ctx.translate(b.x, b.y);
-      ctx.rotate(b.r);
-      ctx.fillStyle = b.c;
-      if (b.round) { ctx.beginPath(); ctx.arc(0, 0, b.w / 2, 0, 6.3); ctx.fill(); }
-      else { ctx.fillRect(-b.w / 2, -b.h / 2, b.w, b.h * Math.abs(Math.cos(b.r))); }
-      ctx.restore();
-    }
-    if (bits.length) requestAnimationFrame(tick);
-    else { confettiRunning = false; ctx.clearRect(0, 0, innerWidth, innerHeight); }
-  };
-  requestAnimationFrame(tick);
-}
-
-// ------------------------------------------------------------------ summary drafting
-
-function draftSummary() {
-  const mode = state.target, role = state.role.trim();
-  const edu = visible('education')[0];
-  const skills = lines(state.skills).flatMap(l => l.replace(/^[^:]{1,32}:\s*/, '').split(/\s*[,;·]\s*/))
-    .map(s => s.replace(/\s*\(.*?\)\s*/g, '').trim()).filter(Boolean).slice(0, 3);
-  const exp = visible('experience'), acts = visible('activities'), vol = visible('volunteer'), proj = visible('projects');
-  const level = edu && /high school/i.test(edu.school + ' ' + edu.degree) ? 'High school student'
-    : edu && edu.degree ? `${edu.degree.replace(/,.*$/, '')} student` : 'Student';
-  const student = `${level}${edu && edu.school ? ` at ${edu.school}` : ''}`;
-  const skillText = skills.length ? humanList(skills) : '';
-  const leader = acts.find(a => /president|captain|founder|lead|chair|head|director|editor/i.test(a.title));
-  const leadText = leader ? `${leader.title.toLowerCase()} of ${leader.org || 'a student organization'}` : '';
-  const gpa = edu && edu.gpa ? ` with a ${edu.gpa} GPA` : '';
-  const exper = [...exp, ...proj].slice(0, 2).map(e => (e.title || e.org).trim()).filter(Boolean);
-
-  const out = {
-    internship: `${student} seeking a ${role || 'summer'} internship. ${exper.length ? `Hands-on experience as ${humanList(exper)}` : 'Hands-on experience through coursework and projects'}${skillText ? `, with skills in ${skillText}` : ''}. Quick learner who is eager to contribute to a real team and deliver results.`,
-    job: `${role ? `${role} candidate` : 'Motivated, results-driven professional'}${exper.length ? ` with experience as ${humanList(exper)}` : ''}${skillText ? `. Skilled in ${skillText}` : ''}. Known for reliability, clear communication and measurable impact.`,
-    college: `${student}${gpa}${leadText ? `, ${leadText}` : ''}${acts.length ? `, and active in ${humanList(acts.slice(0, 2).map(a => a.org || a.title))}` : ''}. ${role ? `Planning to study ${role}. ` : ''}Curious, driven and committed to my community.`,
-    scholarship: `${student}${gpa} committed to academic excellence and service${vol.length ? ` through ${humanList(vol.slice(0, 2).map(v => v.org || v.title))}` : ''}. ${leadText ? `Serves as ${leadText}. ` : ''}${role ? `Pursuing ${role}. ` : ''}`,
-    research: `${student} with interests in ${role || 'research'}${proj.length ? ` and experience on ${humanList(proj.slice(0, 2).map(x => x.title))}` : ''}${skillText ? `. Technical skills include ${skillText}` : ''}.`,
-    firstjob: `Dependable, hardworking ${level.toLowerCase()} ready to ${role ? `join the team as a ${role}` : 'contribute from day one'}. ${acts.length ? `Proven teamwork through ${acts[0].org || acts[0].title}. ` : ''}${skillText ? `Strengths include ${skillText}. ` : ''}Flexible schedule and quick to learn.`,
-  }[mode];
-  return out.replace(/\s+/g, ' ').replace(/\s+\./g, '.').trim();
-}
-
 // ------------------------------------------------------------------ rendering: targets
 
 function renderTargets() {
   $('#targetGrid').innerHTML = Object.entries(MODES).map(([k, m]) => `
-    <button class="target ${state.target === k ? 'active' : ''}" data-target="${k}" type="button" style="--tile:${m.tile};--tile-ink:${m.tileInk}">
-      <span class="tick">${icon('check', 12, 3)}</span>
-      <div class="t-icon">${icon(m.icon, 19)}</div>
+    <button class="target ${state.target === k ? 'active' : ''}" data-target="${k}" type="button">
       <div class="t-name">${m.label}</div>
       <div class="t-desc">${m.desc}</div>
     </button>`).join('');
-  $('#modeNote').innerHTML = `${icon('sparkle', 15)}<b>${esc(MODES[state.target].label)} mode</b><span>${esc(MODES[state.target].how)}</span>`;
+  $('#modeNote').textContent = MODES[state.target].how;
 }
 
 // ------------------------------------------------------------------ rendering: info form
@@ -635,33 +505,33 @@ function field(path, label, value, placeholder, type = 'text', need = false) {
   return `<label class="fld"><span>${label}${need ? needNote(value) : ''}</span><input type="${type}" data-path="${path}" value="${esc(value)}" placeholder="${esc(placeholder)}"></label>`;
 }
 
-const emptyNote = what => `<p class="empty-note">${icon('alert', 15, 2.4)}<span>Nothing about ${what} was found in your info yet. Fill it in here, or leave it blank if it doesn't apply.</span></p>`;
+const emptyNote = what => `<p class="empty-note">Nothing about ${what} turned up in your info. Fill it in here, or leave it blank if it doesn't apply.</p>`;
 
 function entryTitle(sec, e) {
   const h = ENTRY[sec].heading(e), s = ENTRY[sec].sub(e);
   return h && s ? `${h} · ${s}` : h || s || '';
 }
 
-function cardHead(iconName, color, label, count, countLabel, needs = !count) {
-  return `<summary><span class="s-icon" style="--c:${color}">${icon(iconName, 17)}</span>${label}
+function cardHead(label, count, needs = !count) {
+  return `<summary><span class="s-label">${label}</span>
     ${needs ? '<span class="need-tag">Needs info</span>' : ''}
-    <span class="count ${count ? 'has' : ''}">${countLabel ?? count}</span><span class="chev">${icon('chevron', 18)}</span></summary>`;
+    <span class="count">${count || ''}</span></summary>`;
 }
 
 function aiCardHTML() {
   const mode = MODES[state.target].label;
   if (!aiInfo.configured && aiInfo.locked) return '';
   if (!aiInfo.configured) {
-    return `<div class="ai-card"><span class="ai-card-icon">${icon('sparkle', 17)}</span>
-      <div class="ai-card-text"><strong>Make it sound professional with AI</strong><small>Connect a free AI so Optimize my Resume also rewrites everything for ${esc(mode)}.</small></div>
-      <div class="ai-card-actions"><button class="btn primary" type="button" data-ai-connect>Connect</button></div></div>`;
+    return `<div class="ai-card"><div class="ai-card-text"><strong>Rewriting is off</strong>
+      <small>Connect the back-end API and Build my resume will also rewrite every section for ${esc(mode)}.</small></div>
+      <button class="btn" type="button" data-ai-connect>Connect</button></div>`;
   }
   if (!aiBusy && !state.aiUndo && !state.aiTips?.length) return '';
-  return `<div class="ai-card ${aiBusy ? 'busy' : ''}"><span class="ai-card-icon">${aiBusy ? '<i class="spin"></i>' : icon('sparkle', 17)}</span>
-    <div class="ai-card-text"><strong>${aiBusy ? `Rewriting with ${esc(aiInfo.label)}` : `Optimized for ${esc(mode)}`}</strong>
-      <small>${aiBusy ? 'Rewriting your summary, bullets and every section. This takes a few seconds.' : 'Read it over. Undo brings back your previous wording.'}</small></div>
-    <div class="ai-card-actions">${state.aiUndo && !aiBusy ? '<button class="btn" type="button" data-ai-undo>Undo</button>' : ''}</div>
-    ${state.aiTips?.length && !aiBusy ? `<div class="ai-tips"><b>Answer these to make it even stronger</b>
+  return `<div class="ai-card ${aiBusy ? 'busy' : ''}">
+    <div class="ai-card-text"><strong>${aiBusy ? 'Rewriting through the back-end API' : `Rewritten for ${esc(mode)}`}</strong>
+      <small>${aiBusy ? 'Every entry and list is being reworded. This takes a few seconds.' : 'Read it over and change anything that isn’t accurate. Undo brings back your previous wording.'}</small></div>
+    ${state.aiUndo && !aiBusy ? '<button class="btn" type="button" data-ai-undo>Undo</button>' : ''}
+    ${state.aiTips?.length && !aiBusy ? `<div class="ai-tips"><b>Answer these to make it stronger</b>
       <ul>${state.aiTips.map(t => `<li>${esc(t)}</li>`).join('')}</ul></div>` : ''}</div>`;
 }
 
@@ -672,7 +542,7 @@ function renderInfo() {
 
   let h = aiCardHTML() + `
   <details class="card" data-card="contact" ${isOpen('contact') ? 'open' : ''}>
-    ${cardHead('user', COLORS.blue, 'Contact & summary', p.name ? 1 : 0, p.name ? icon('check', 14, 3) : '!', !(p.name && p.email && p.phone))}
+    ${cardHead('Contact', 0, !(p.name && p.email && p.phone))}
     <div class="card-body">
       <div class="grid2">
         ${field('profile.name', 'Full name', p.name, 'Jordan Rivera', 'text', true)}
@@ -681,10 +551,6 @@ function renderInfo() {
         ${field('profile.location', 'City, State', p.location, 'Austin, TX', 'text', true)}
         <label class="fld wide"><span>Links: LinkedIn, portfolio, GitHub (separate with | )</span>
           <input type="text" data-path="profile.links" value="${esc(p.links)}" placeholder="linkedin.com/in/jordan | jordan.dev"></label>
-        <label class="fld wide">
-          <span class="fld-row"><span>Summary${needNote(p.summary, 'Optimize writes this')}</span> <button class="mini-btn" type="button" data-draft>${icon('sparkle', 14)}Draft for me</button></span>
-          <textarea data-path="profile.summary" rows="3" placeholder="Two or three lines on who you are and what you're aiming for. Optional for internships and college apps.">${esc(p.summary)}</textarea>
-        </label>
       </div>
     </div>
   </details>`;
@@ -693,7 +559,7 @@ function renderInfo() {
     const cfg = ENTRY[sec], items = state[sec];
     h += `
     <details class="card" data-card="${sec}" ${isOpen(sec) ? 'open' : ''}>
-      ${cardHead(cfg.icon, cfg.color, cfg.label, items.length)}
+      ${cardHead(cfg.label, items.length)}
       <div class="card-body">
         ${items.length ? '' : emptyNote(cfg.label.toLowerCase())}
         ${items.map((e, i) => {
@@ -701,19 +567,18 @@ function renderInfo() {
           return `
           <div class="entry ${e.hidden ? 'is-hidden' : ''}" data-sec="${sec}" data-i="${i}">
             <div class="entry-head">
-              <span class="grip" title="Drag to reorder">${icon('grip', 16)}</span>
               <span class="entry-title ${t ? '' : 'empty'}">${esc(t || `New ${cfg.noun}`)}</span>
-              <button class="icon-btn" type="button" data-act="toggle" title="${e.hidden ? 'Show on resume' : 'Hide from resume (keeps it saved)'}">${icon(e.hidden ? 'eyeOff' : 'eye', 17)}</button>
-              <button class="icon-btn" type="button" data-act="up" title="Move up">${icon('up', 16)}</button>
-              <button class="icon-btn" type="button" data-act="down" title="Move down">${icon('down', 16)}</button>
-              <button class="icon-btn danger" type="button" data-act="del" title="Delete">${icon('trash', 16)}</button>
+              <button class="text-btn" type="button" data-act="toggle" title="${e.hidden ? 'Put it back on the resume' : 'Leave it off the resume but keep it saved'}">${e.hidden ? 'Show' : 'Hide'}</button>
+              <button class="text-btn" type="button" data-act="up" aria-label="Move up">Up</button>
+              <button class="text-btn" type="button" data-act="down" aria-label="Move down">Down</button>
+              <button class="text-btn danger" type="button" data-act="del">Delete</button>
             </div>
             <div class="grid2">${cfg.fields.map(([k, label, ph]) => field(`${sec}.${i}.${k}`, label, e[k], ph)).join('')}</div>
             <label class="fld wide"><span>${cfg.bullets}</span>
               <textarea data-path="${sec}.${i}.bullets" rows="3">${esc(e.bullets)}</textarea></label>
           </div>`;
         }).join('')}
-        <button class="add-btn" type="button" data-add="${sec}">${icon('plus', 16, 2.6)}Add ${cfg.noun}</button>
+        <button class="add-btn" type="button" data-add="${sec}">+ Add ${cfg.noun}</button>
       </div>
     </details>`;
   }
@@ -722,7 +587,7 @@ function renderInfo() {
     const cfg = LISTS[key], n = lines(state[key]).length;
     h += `
     <details class="card" data-card="${key}" ${isOpen(key) ? 'open' : ''}>
-      ${cardHead(cfg.icon, cfg.color, cfg.label, n)}
+      ${cardHead(cfg.label, n)}
       <div class="card-body">
         ${n ? '' : emptyNote(cfg.label.toLowerCase())}
         <textarea data-path="${key}" rows="${cfg.rows}">${esc(state[key])}</textarea>
@@ -738,7 +603,7 @@ function renderInfo() {
 function renderDesign() {
   const d = state.design, mode = MODES[state.target];
   $('#designPanel').innerHTML = `
-    <div class="design-group" style="--dot:${COLORS.blue}">
+    <div class="design-group">
       <h3>Template</h3>
       <div class="tpl-grid">
         ${TEMPLATES.map(([k, label]) => `
@@ -747,36 +612,36 @@ function renderDesign() {
           </button>`).join('')}
       </div>
     </div>
-    <div class="design-group" style="--dot:${COLORS.pink}">
+    <div class="design-group">
       <h3>Accent color</h3>
       <div class="swatches">
-        ${ACCENTS.map(([c, name]) => `<button class="swatch ${d.accent === c ? 'active' : ''}" type="button" title="${name}" aria-label="${name}" data-set="accent" data-val="${c}" style="--sw:${c}">${icon('check', 18, 3.2)}</button>`).join('')}
+        ${ACCENTS.map(([c, name]) => `<button class="swatch ${d.accent === c ? 'active' : ''}" type="button" title="${name}" aria-label="${name}" data-set="accent" data-val="${c}" style="--sw:${c}"></button>`).join('')}
       </div>
     </div>
-    <div class="design-group" style="--dot:${COLORS.sun}">
+    <div class="design-group">
       <h3>Font</h3>
       <div class="seg">${Object.entries(FONTS).map(([k, [label, stack]]) => `<button type="button" class="${d.font === k ? 'active' : ''}" data-set="font" data-val="${k}" style="font-family:${stack.replace(/"/g, "'")}">${label}</button>`).join('')}</div>
     </div>
-    <div class="design-group" style="--dot:${COLORS.mint}">
+    <div class="design-group">
       <h3>Text size</h3>
       <div class="range-row"><input type="range" min="9" max="12" step="0.25" value="${d.size}" id="sizeRange" aria-label="Text size"><output id="sizeOut">${d.size}pt</output></div>
     </div>
-    <div class="design-group" style="--dot:${COLORS.coral}">
+    <div class="design-group">
       <h3>GPA</h3>
       <div class="seg">${[['auto', mode.gpa === 'show' ? 'Auto (show)' : 'Auto (3.5+ only)'], ['show', 'Always show'], ['hide', 'Hide']]
         .map(([k, label]) => `<button type="button" class="${d.gpa === k ? 'active' : ''}" data-set="gpa" data-val="${k}">${label}</button>`).join('')}</div>
     </div>
-    <div class="design-group" style="--dot:${COLORS.lime}">
+    <div class="design-group">
       <h3>Smart options</h3>
       <div class="toggle-row"><div><strong>Fit to one page</strong><small>Tightens spacing, then text (down to 9pt) until it fits.${mode.multiPage ? ' Off for Research, since CVs can run long.' : ''}</small></div>
         <label class="switch"><input type="checkbox" data-toggle="fit" ${d.fit ? 'checked' : ''}><span></span></label></div>
       <div class="toggle-row"><div><strong>Strengthen wording</strong><small>Swaps weak openers for action verbs and tidies punctuation. Your original text stays untouched.</small></div>
         <label class="switch"><input type="checkbox" data-toggle="strengthen" ${d.strengthen ? 'checked' : ''}><span></span></label></div>
     </div>
-    <div class="design-group" style="--dot:${COLORS.blue}">
+    <div class="design-group">
       <h3>Section order for ${esc(mode.label)}</h3>
       <div class="order-list">${mode.order.map((k, i) => `<div><b>${i + 1}</b>${esc(mode.titles[k] || DEFAULT_TITLES[k])}</div>`).join('')}</div>
-      <p class="field-hint">Set by your target in step 1. Empty sections are skipped.</p>
+      <p class="field-hint">Set by the target you picked above. Empty sections are skipped.</p>
     </div>`;
 }
 
@@ -784,7 +649,7 @@ function renderDesign() {
 
 function renderFiles() {
   $('#fileList').innerHTML = pendingFiles.map((f, i) =>
-    `<span class="file-chip">${icon('file', 15)}<span>${esc(f.name)}</span><button type="button" data-rm="${i}" aria-label="Remove ${esc(f.name)}">${icon('x', 14, 2.6)}</button></span>`).join('');
+    `<span class="file-chip"><span>${esc(f.name)}</span><button type="button" data-rm="${i}" aria-label="Remove ${esc(f.name)}">Remove</button></span>`).join('');
 }
 
 function addFiles(list) {
@@ -801,7 +666,6 @@ function mergeParsed(r) {
     rp.links.split(/\s*\|\s*/).forEach(l => { if (l && !have.includes(l)) have.push(l); });
     p.links = have.join(' | ');
   }
-  if (rp.summary && !p.summary.trim()) p.summary = rp.summary;
 
   for (const sec of ENTRY_KEYS) {
     for (const e of r[sec] || []) {
@@ -828,34 +692,29 @@ function mergeParsed(r) {
 
 async function runOptimize() {
   const text = $('#pasteBox').value.trim();
-  // A self-description typed into Summary is raw material too: sort its facts into the sections once.
-  const notes = state.profile.summary.trim();
-  const useNotes = aiInfo.configured && words(notes) >= 20 && state.notesSorted !== notes;
-  const hasNew = pendingFiles.length || text || useNotes;
+  const hasNew = pendingFiles.length || text;
   if (!hasNew && !hasAnyInfo()) return toast('Add a file or type a few sentences about yourself first', true);
 
-  const btn = $('#optimizeBtn'), label = $('.btn-label', btn), ic = $('.btn-icon', btn), errBox = $('#importErrors');
+  const btn = $('#optimizeBtn'), label = $('.btn-label', btn), errBox = $('#importErrors');
   const busy = msg => { label.textContent = msg; };
   btn.disabled = true;
-  ic.innerHTML = '<i class="spin"></i>';
   errBox.innerHTML = '';
   let parts = [], sortedByAI = false;
   try {
     if (hasNew) {
-      busy(aiInfo.configured ? `Sorting with ${aiInfo.label}` : 'Reading your info');
+      busy('Reading your info');
       const fd = new FormData();
       pendingFiles.forEach(f => fd.append('files', f));
-      fd.append('text', [text, useNotes ? notes : ''].filter(Boolean).join('\n\n'));
+      fd.append('text', text);
       fd.append('ai', aiInfo.configured ? '1' : '0');
       const res = await fetch('/api/extract', { method: 'POST', body: fd });
       const data = await res.json().catch(() => ({ error: 'The server sent something unexpected.' }));
       if (!res.ok) throw new Error(data.error || 'Could not read that.');
       const totals = {};
       for (const r of data.results) for (const [k, n] of Object.entries(mergeParsed(r))) totals[k] = (totals[k] || 0) + n;
-      errBox.innerHTML = (data.errors || []).map(e => `<div>${icon('alert', 16, 2.4)}<span>${esc(e)}</span></div>`).join('');
+      errBox.innerHTML = (data.errors || []).map(e => `<div>${esc(e)}</div>`).join('');
       parts = Object.entries(totals).map(([k, n]) => `${n} ${(ENTRY[k] || LISTS[k]).label.toLowerCase()}`);
       sortedByAI = !!data.ai;
-      if (useNotes) state.notesSorted = notes;
       pendingFiles = [];
       renderFiles();
       $('#pasteBox').value = '';
@@ -866,33 +725,29 @@ async function runOptimize() {
     switchTab('info');
     let polished = false;
     if (aiInfo.configured && hasAnyInfo()) {
-      busy(`Rewriting with ${aiInfo.label}`);
-      polished = await aiPolish('all', { quiet: true });
-      if (polished) state.notesSorted = state.profile.summary.trim();  // don't re-sort the AI's own summary next time
+      busy('Rewriting');
+      polished = await aiPolish({ quiet: true });
     }
     flashPage();
-    const r = btn.getBoundingClientRect();
-    if (parts.length || polished) confetti(r.left + r.width / 2, r.top, 160);
     const added = parts.length ? `Added ${humanList(parts.slice(0, 3))}${parts.length > 3 ? ' and more' : ''}. ` : '';
     const extra = polished?.added ? ` It added ${polished.added} typical dut${polished.added > 1 ? 'ies' : 'y'} for your roles, so check they're true.` : '';
     toast(polished ? `${added}Rewritten for ${MODES[state.target].label}.${extra} Fill in anything marked Needs info.`
       : aiInfo.configured ? `${added}Fill in anything marked Needs info.`
-      : `${added || 'Sorted. '}Connect AI to also rewrite everything.`);
+      : `${added || 'Sorted. '}Connect the back-end API to have it rewritten too.`);
     if (!sortedByAI && !polished && !parts.length && hasNew) toast('Read it, but found nothing new to add');
   } catch (err) {
-    errBox.innerHTML = `<div>${icon('alert', 16, 2.4)}<span>${esc(err.message)}</span></div>`;
+    errBox.innerHTML = `<div>${esc(err.message)}</div>`;
     toast(err.message, true);
   } finally {
     btn.disabled = false;
-    ic.innerHTML = icon('sparkle', 17, 2);
-    label.textContent = 'Optimize my Resume';
+    label.textContent = 'Build my resume';
     save();
   }
 }
 
 function hasAnyInfo() {
   const p = state.profile;
-  return !!(p.name.trim() || p.email.trim() || p.phone.trim() || p.summary.trim()
+  return !!(p.name.trim() || p.email.trim() || p.phone.trim()
     || ENTRY_KEYS.some(k => state[k].some(e => ENTRY[k].heading(e) || ENTRY[k].sub(e) || e.bullets.trim()))
     || LIST_KEYS.some(k => lines(state[k]).length));
 }
@@ -1006,10 +861,10 @@ async function loadAI() {
 function renderAIBits() {
   $('#aiBtn').classList.toggle('on', aiInfo.configured);
   $('#aiBtn').hidden = !!aiInfo.locked;  // hosted: the owner's key is used, visitors have nothing to set up
-  $('#aiBtnLabel').textContent = aiInfo.configured ? `${aiInfo.label} on` : 'Connect AI';
-  $('#optimizeNote').textContent = aiInfo.configured
-    ? `Sorts everything into the right sections and rewrites it for your target with ${aiInfo.label}.`
-    : aiInfo.locked ? 'Sorts your info into the right sections.' : 'Sorts your info into the right sections. Connect AI to also rewrite it.';
+  $('#aiBtnLabel').textContent = aiInfo.configured ? 'API connected' : 'Connect API';
+  $('#optimizeNote').textContent = aiInfo.configured || aiInfo.locked
+    ? 'Sorts what you wrote into sections and rewrites it for your target, optimized through our back-end API.'
+    : 'Sorts your info into the right sections. Connect the back-end API to have it rewritten too.';
   const card = $('#infoPanel .ai-card'), html = aiCardHTML();
   if (card && html) card.outerHTML = html;
   else if (card) card.remove();
@@ -1064,11 +919,9 @@ async function saveAI() {
     aiInfo = await postAISettings({ provider: aiChoice, key: $('#aiKey').value.trim(), model: $('#aiModel').value.trim() });
     renderAIBits();
     $('#aiDialog').close();
-    toast(`${aiInfo.label} connected. Try Polish in Your info.`);
-    const r = $('#aiBtn').getBoundingClientRect();
-    confetti(r.left + r.width / 2, r.bottom, 80);
+    toast('Connected. Build my resume will now rewrite everything.');
   } catch (err) {
-    $('#aiError').innerHTML = `<div>${icon('alert', 16, 2.4)}<span>${esc(err.message)}</span></div>`;
+    $('#aiError').innerHTML = `<div>${esc(err.message)}</div>`;
   } finally {
     btn.disabled = false;
     $('.spin', btn)?.remove();
@@ -1076,41 +929,38 @@ async function saveAI() {
   }
 }
 
-function aiPayload(scope) {
+function aiPayload() {
   const sections = {};
   for (const sec of ENTRY_KEYS.filter(k => k !== 'education')) {
     sections[sec] = state[sec].map((e, i) => ({ id: `${sec}:${i}`, title: e.title, org: e.org, dates: e.dates, location: e.location, bullets: lines(e.bullets) }))
       .filter(x => x.title || x.org || x.bullets.length);
   }
   return {
-    scope, target_key: state.target, role: state.role, summary: state.profile.summary,
+    target_key: state.target, role: state.role,
     education: state.education.map((e, i) => ({ id: `education:${i}`, school: e.school, degree: e.degree, dates: e.dates, gpa: e.gpa, details: lines(e.bullets) })),
     sections, ...Object.fromEntries(LIST_KEYS.map(k => [k, lines(k === 'coursework' ? state[k].replace(/[,;]/g, '\n') : state[k])])),
   };
 }
 
 // Returns the AI's result on success (falsy on failure). quiet: the caller shows its own toast.
-async function aiPolish(scope, { quiet = false } = {}) {
+async function aiPolish({ quiet = false } = {}) {
   if (!aiInfo.configured) return openAI();
   if (aiBusy) return null;
   aiBusy = true;
   renderAIBits();
-  const draftBtn = $('[data-draft]');
-  if (draftBtn) { draftBtn.disabled = true; draftBtn.innerHTML = '<i class="spin" style="border-color:rgba(46,91,255,.25);border-top-color:var(--blue);width:12px;height:12px"></i>Writing'; }
   try {
-    const res = await fetch('/api/ai/polish', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(aiPayload(scope)) });
+    const res = await fetch('/api/ai/polish', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(aiPayload()) });
     const data = await res.json().catch(() => ({ error: 'The server sent something unexpected.' }));
     if (!res.ok) throw new Error(data.error || 'AI polish failed.');
 
-    state.aiUndo = JSON.stringify({ summary: state.profile.summary, aiTips: state.aiTips || [],
+    state.aiUndo = JSON.stringify({ aiTips: state.aiTips || [],
       ...Object.fromEntries([...ENTRY_KEYS, ...LIST_KEYS].map(k => [k, state[k]])) });
-    if (data.summary) state.profile.summary = data.summary;
     for (const r of data.education || []) {
       const e = state.education[+String(r.id).split(':')[1]];
       if (e && r.bullets) e.bullets = r.bullets.join('\n');
     }
     for (const k of LIST_KEYS) if (data[k]?.length) state[k] = (k === 'coursework' ? [data[k].join(', ')] : data[k]).join('\n');
-    if (scope !== 'summary') state.aiTips = data.tips || [];
+    state.aiTips = data.tips || [];
     for (const [sec, rows] of Object.entries(data.sections || {})) {
       const arr = state[sec], used = new Set(), next = [];
       for (const r of rows) {
@@ -1129,10 +979,7 @@ async function aiPolish(scope, { quiet = false } = {}) {
     renderPreview();
     if (quiet) return data;
     flashPage();
-    const r = ($('#infoPanel .ai-card') || $('#page')).getBoundingClientRect();
-    confetti(r.left + r.width / 2, r.top + 20, 110);
-    toast(scope === 'summary' ? 'AI wrote your summary from your whole resume. Tweak it so it sounds like you.'
-      : `Rewritten for ${MODES[state.target].label}. Undo brings back your version.`);
+    toast(`Rewritten for ${MODES[state.target].label}. Undo brings back your version.`);
     return data;
   } catch (err) {
     aiBusy = false;
@@ -1145,7 +992,6 @@ async function aiPolish(scope, { quiet = false } = {}) {
 function aiUndo() {
   if (!state.aiUndo) return;
   const snap = JSON.parse(state.aiUndo);
-  state.profile.summary = snap.summary;
   state.aiTips = snap.aiTips;
   [...ENTRY_KEYS, ...LIST_KEYS].forEach(k => { if (snap[k] !== undefined) state[k] = snap[k]; });
   state.aiUndo = null;
@@ -1180,7 +1026,7 @@ $('#aiRemove').addEventListener('click', async () => {
 let toastTimer;
 function toast(msg, warn = false) {
   const t = $('#toast');
-  t.innerHTML = `${icon(warn ? 'alert' : 'check', 17, 3)}<span>${esc(msg)}</span>`;
+  t.textContent = msg;
   t.classList.toggle('warn', warn);
   t.classList.add('show');
   clearTimeout(toastTimer);
@@ -1190,7 +1036,6 @@ function toast(msg, warn = false) {
 function switchTab(name) {
   const tabs = $$('.tab');
   tabs.forEach(t => t.classList.toggle('active', t.dataset.tab === name));
-  $('#tabs').style.setProperty('--i', tabs.findIndex(t => t.dataset.tab === name));
   $$('.panel').forEach(p => p.classList.toggle('active', p.dataset.panel === name));
 }
 
@@ -1207,24 +1052,6 @@ function moveEntry(sec, from, to) {
   const [item] = arr.splice(from, 1);
   arr.splice(to, 0, item);
   return true;
-}
-
-const ROLE_EXAMPLES = ['Marketing intern at Spotify', 'Pre-med at UT Austin', 'Barista at Blue Bottle', 'Software engineer, new grad',
-  'Gates Scholarship', 'Summer lab assistant, neuroscience', 'Lifeguard at the city pool', 'Film school, NYU Tisch'];
-function typePlaceholder() {
-  const el = $('#role');
-  if (calm) return;
-  let i = 0, j = 0, deleting = false;
-  const tick = () => {
-    if (el.value || document.activeElement === el) return setTimeout(tick, 1200);
-    const word = ROLE_EXAMPLES[i];
-    j += deleting ? -1 : 1;
-    el.placeholder = 'e.g. ' + word.slice(0, j) + '|';
-    if (!deleting && j === word.length) { deleting = true; return setTimeout(tick, 1700); }
-    if (deleting && j === 0) { deleting = false; i = (i + 1) % ROLE_EXAMPLES.length; }
-    setTimeout(tick, deleting ? 28 : 65);
-  };
-  setTimeout(tick, 800);
 }
 
 // ------------------------------------------------------------------ events
@@ -1260,7 +1087,7 @@ $('#pasteBox').addEventListener('keydown', e => { if (e.key === 'Enter' && (e.ct
 $('#sampleBtn').addEventListener('click', () => {
   $('#pasteBox').value = SAMPLE;
   $('#pasteBox').focus();
-  toast('Sample pasted. Hit “Optimize my Resume”.');
+  toast('Sample pasted. Press Build my resume.');
 });
 
 const info = $('#infoPanel');
@@ -1283,20 +1110,8 @@ info.addEventListener('input', e => {
 });
 info.addEventListener('click', e => {
   if (e.target.closest('[data-ai-connect]')) return openAI();
-  if (e.target.closest('[data-ai-polish]')) return aiPolish('all');
+  if (e.target.closest('[data-ai-polish]')) return aiPolish();
   if (e.target.closest('[data-ai-undo]')) return aiUndo();
-  if (e.target.closest('[data-draft]')) {
-    e.preventDefault();
-    const p = state.profile;
-    if (p.summary.trim() && !confirm('Replace your current summary with a fresh draft?')) return;
-    if (aiInfo.configured) return aiPolish('summary');
-    p.summary = draftSummary();
-    $('[data-path="profile.summary"]').value = p.summary;
-    save();
-    renderPreview();
-    toast(`Drafted a ${MODES[state.target].label} summary. Edit it so it sounds like you.`);
-    return;
-  }
   const add = e.target.closest('[data-add]');
   if (add) {
     const sec = add.dataset.add;
@@ -1321,42 +1136,6 @@ info.addEventListener('click', e => {
   renderInfo();
   save();
   renderPreview();
-});
-
-// drag to reorder: only the grip starts a drag, so text inside fields stays selectable
-let drag = null;
-info.addEventListener('pointerdown', e => {
-  const grip = e.target.closest('.grip');
-  if (grip) grip.closest('.entry').draggable = true;
-});
-info.addEventListener('dragstart', e => {
-  const card = e.target.closest('.entry');
-  if (!card || !card.draggable) return;
-  drag = { sec: card.dataset.sec, i: +card.dataset.i };
-  e.dataTransfer.effectAllowed = 'move';
-  e.dataTransfer.setData('text/plain', '');
-  requestAnimationFrame(() => card.classList.add('dragging'));
-});
-info.addEventListener('dragover', e => {
-  const card = e.target.closest('.entry');
-  if (!drag || !card || card.dataset.sec !== drag.sec) return;
-  e.preventDefault();
-  const r = card.getBoundingClientRect(), after = e.clientY > r.top + r.height / 2;
-  $$('.drop-before, .drop-after', info).forEach(x => x.classList.remove('drop-before', 'drop-after'));
-  card.classList.add(after ? 'drop-after' : 'drop-before');
-});
-info.addEventListener('drop', e => {
-  const card = e.target.closest('.entry');
-  if (!drag || !card || card.dataset.sec !== drag.sec) return;
-  e.preventDefault();
-  const r = card.getBoundingClientRect(), after = e.clientY > r.top + r.height / 2;
-  let to = +card.dataset.i + (after ? 1 : 0);
-  if (to > drag.i) to--;
-  if (moveEntry(drag.sec, drag.i, to)) { renderInfo(); save(); renderPreview(); }
-});
-info.addEventListener('dragend', () => {
-  drag = null;
-  $$('.entry', info).forEach(x => { x.draggable = false; x.classList.remove('dragging', 'drop-before', 'drop-after'); });
 });
 
 const design = $('#designPanel');
@@ -1408,15 +1187,10 @@ $('#resetBtn').addEventListener('click', () => {
 
 // ------------------------------------------------------------------ boot
 
-$$('[data-icon]').forEach(el => el.insertAdjacentHTML('afterbegin', icon(el.dataset.icon, +(el.dataset.size || 16), 2)));
-const onScroll = () => $('#topbar').classList.toggle('scrolled', scrollY > 8);
-addEventListener('scroll', onScroll, { passive: true });
-onScroll();
 
 new ResizeObserver(() => requestAnimationFrame(scalePreview)).observe($('#previewWrap'));
 document.fonts?.ready.then(() => renderPreview());
 
-let booted = false;
 function renderAll() {
   $('#role').value = state.role;
   renderTargets();
@@ -1425,6 +1199,9 @@ function renderAll() {
   renderPreview();
 }
 renderAll();
-booted = true;
-typePlaceholder();
+if (state.profile.summary.trim()) {
+  if (state.notesSorted !== state.profile.summary.trim()) $('#pasteBox').value = state.profile.summary.trim();
+  state.profile.summary = '';
+  save();
+}
 loadAI();

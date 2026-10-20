@@ -3,42 +3,34 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Shortlist: resume studio</title>
+  <title>Shortlist</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;450;500;550;600;650;700&family=Inter:ital,wght@0,400;0,500;0,600;0,700;1,400&family=Source+Serif+4:ital,wght@0,400;0,600;0,700;1,400&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:ital,wght@0,400;0,500;0,600;0,700;1,400&family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,600;0,8..60,700;1,8..60,400&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/static/style.css">
 </head>
 <body>
-<div class="topbar-wrap" id="topbar">
-  <header class="topbar">
-    <a class="brand" href="/">
-      <span class="logo" aria-hidden="true">
-        <svg viewBox="0 0 24 24" width="17" height="17"><path d="M5 12.5l4.5 4.5L19 7.5" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg>
-      </span>
-      <span class="brand-name">Shortlist</span>
-      <span class="brand-sub">Resume studio</span>
-    </a>
-    <div class="top-actions">
-      <span class="save-state" id="saveState">Saved on this device</span>
-      <button class="btn ghost" id="resetBtn" type="button">Start over</button>
-      <button class="btn ai-btn" id="aiBtn" type="button"><span class="ai-dot"></span><span id="aiBtnLabel">Connect AI</span></button>
-      <button class="btn" id="docxBtn" type="button" data-icon="download">Word</button>
-      <button class="btn primary" id="pdfBtn" type="button" data-icon="download">Download PDF <span class="kbd">Ctrl P</span></button>
-    </div>
-  </header>
-</div>
+<header class="topbar" id="topbar">
+  <a class="brand" href="/">Shortlist</a>
+  <div class="top-actions">
+    <span class="save-state" id="saveState">Saved on this device</span>
+    <button class="btn ghost" id="resetBtn" type="button">Start over</button>
+    <button class="btn ghost" id="aiBtn" type="button"><span id="aiBtnLabel">Connect API</span></button>
+    <button class="btn" id="docxBtn" type="button">Word</button>
+    <button class="btn primary" id="pdfBtn" type="button">Download PDF</button>
+  </div>
+</header>
 
 <div class="app">
   <section class="hero">
     <div>
-      <span class="eyebrow"><b>1</b>Choose a target</span>
-      <h1>What's this resume <span class="accent">for?</span></h1>
-      <p class="hero-sub">Pick a target and Shortlist reorders your sections, decides what to show, and coaches you while you type.</p>
+      <p class="step">Step one</p>
+      <h1>What is this resume for?</h1>
+      <p class="hero-sub">The target decides which sections lead, what gets shown, and how the wording is pitched.</p>
     </div>
     <label class="role-field">
-      <span>Target role, company or program <em>(optional)</em></span>
-      <input id="role" type="text" autocomplete="off" placeholder="e.g. Marketing intern at Spotify">
+      <span>Role, company or program <em>optional</em></span>
+      <input id="role" type="text" autocomplete="off" placeholder="Marketing intern at Spotify">
     </label>
   </section>
 
@@ -47,33 +39,27 @@
 
   <main class="workspace">
     <section class="editor">
-      <div class="tabs-wrap">
-        <nav class="tabs" role="tablist" id="tabs">
-          <span class="indicator" aria-hidden="true"></span>
-          <button class="tab active" data-tab="import" type="button"><span class="tab-num">02</span>Import</button>
-          <button class="tab" data-tab="info" type="button"><span class="tab-num">03</span>Your info</button>
-          <button class="tab" data-tab="design" type="button"><span class="tab-num">04</span>Design</button>
-        </nav>
-      </div>
+      <nav class="tabs" role="tablist" id="tabs">
+        <button class="tab active" data-tab="import" type="button">Import</button>
+        <button class="tab" data-tab="info" type="button">Your info</button>
+        <button class="tab" data-tab="design" type="button">Design</button>
+      </nav>
 
       <div class="panel active" data-panel="import">
+        <label class="paste">
+          <span class="paste-label">Tell us about yourself</span>
+          <span class="paste-help">Write it however it comes out: school, jobs, clubs, sports, awards, skills. List every role on its own, even if two share a name.</span>
+          <textarea id="pasteBox" rows="11" placeholder="Jane Doe, jane@email.com&#10;Senior at Lincoln High, 3.9 GPA&#10;Middle school yearbook staff member, then People section editor in high school&#10;President of Robotics Club 2023 to 2025, led 15 members to state finals&#10;Cashier at Target since June 2024, about 80 customers a shift&#10;Volunteer at the food bank, 120 hours"></textarea>
+        </label>
+
         <label class="dropzone" id="dropzone">
           <input type="file" id="fileInput" multiple accept=".pdf,.docx,.docm,.dotx,.odt,.rtf,.txt,.md,.markdown,.html,.htm,.csv,.json">
-          <div class="drop-icon" data-icon="upload" data-size="22"></div>
-          <strong>Drop files here, or click to browse</strong>
-          <span>Old resumes, activity lists, transcripts, brag docs. Add as many as you like.</span>
-          <div class="formats"><b>PDF</b><b>DOCX</b><b>ODT</b><b>RTF</b><b>TXT</b><b>MD</b><b>HTML</b></div>
+          <strong>Add files</strong>
+          <span>Old resumes, activity lists or transcripts. PDF, Word, ODT, RTF, text or HTML. Drop them here or click.</span>
         </label>
         <div class="file-list" id="fileList"></div>
 
-        <label class="paste">
-          <span class="paste-label">Or paste and type anything <small>Messy notes work too</small></span>
-          <textarea id="pasteBox" rows="9" placeholder="Jane Doe, jane@email.com&#10;Senior at Lincoln High, 3.9 GPA&#10;President of Robotics Club 2023 to 2025, led 15 members to state finals&#10;Cashier at Target since June 2024, handle 80+ customers a shift&#10;Volunteer at the food bank, 120 hours&#10;Skills: Python, Excel, Spanish (fluent)"></textarea>
-        </label>
-        <div class="import-actions">
-          <button class="link-btn" id="sampleBtn" type="button">Try a sample</button>
-        </div>
-        <p class="hint">A few sentences about yourself is enough: school, jobs, clubs, sports, awards, skills. Adds to what's already there, so nothing you've typed gets overwritten. Press <kbd>Ctrl</kbd> + <kbd>Enter</kbd> in the box to optimize.</p>
+        <p class="hint">New material is added to what's already there, so nothing you've typed is overwritten. <button class="link-btn" id="sampleBtn" type="button">Paste a sample</button></p>
         <div class="errors" id="importErrors"></div>
       </div>
 
@@ -81,7 +67,7 @@
       <div class="panel" data-panel="design" id="designPanel"></div>
 
       <div class="optimize-bar">
-        <button class="btn primary big" id="optimizeBtn" type="button"><span class="btn-icon" data-icon="sparkle" data-size="17"></span><span class="btn-label">Optimize my Resume</span></button>
+        <button class="btn primary big" id="optimizeBtn" type="button"><span class="btn-label">Build my resume</span></button>
         <p class="optimize-note" id="optimizeNote">Sorts your info into the right sections.</p>
       </div>
     </section>
@@ -89,7 +75,7 @@
     <section class="preview-col">
       <div class="insights" id="insights"></div>
       <div class="preview-bar">
-        <span class="preview-label"><i class="live-dot"></i>Live preview</span>
+        <span class="preview-label">Preview</span>
         <span class="meta-text" id="pageInfo">1 page</span>
         <span class="meta-text mode" id="modePill"></span>
         <div class="seg zoom" id="zoom">
@@ -112,12 +98,11 @@
 <dialog class="modal" id="aiDialog" aria-labelledby="aiTitle">
   <form method="dialog" class="modal-body">
     <div class="modal-head">
-      <span class="modal-icon" data-icon="sparkle" data-size="20"></span>
       <div>
-        <h2 id="aiTitle">Connect a free AI</h2>
-        <p>Sorts your imports, rewrites bullets so they sound professional, and writes your summary. Your key is saved only on this computer.</p>
+        <h2 id="aiTitle">Connect the back-end API</h2>
+        <p>The optimizer sends your info to a language-model API on the server, which sorts it and rewrites it for your target. The key stays on this computer.</p>
       </div>
-      <button class="icon-btn" value="cancel" formnovalidate aria-label="Close" data-icon="x"></button>
+      <button class="close-btn" value="cancel" formnovalidate aria-label="Close">&times;</button>
     </div>
     <div class="provider-grid" id="providerGrid"></div>
     <ol class="steps" id="aiSteps"></ol>
@@ -138,7 +123,6 @@
 </dialog>
 
 <div id="printRoot"></div>
-<canvas id="confetti" aria-hidden="true"></canvas>
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 <script src="/static/app.js"></script>
 </body>

@@ -1,4 +1,4 @@
-"""Optional AI helpers: sort raw resume text into sections and polish the wording.
+"""Optional AI helpers: sort raw resume text into sections and rewrite the wording.
 
 Talks to any OpenAI-compatible chat endpoint. Google Gemini (free tier) is the default; Groq also works.
 Locally the key lives in ai_settings.json next to this file, or in GEMINI_API_KEY / GROQ_API_KEY.
@@ -169,13 +169,11 @@ def _clean_list(v):
     return [c for c in (_clean(x) for x in (v or [])) if c]
 
 
-# Safety net for AI-sounding words that slip past the prompt.
+# Safety net for the handful of words that instantly read as machine-written.
 SWAPS = {
-    "spearheaded": "led", "spearheading": "leading", "spearhead": "lead", "leveraged": "used", "leveraging": "using",
-    "utilized": "used", "utilizing": "using", "utilize": "use", "fostered": "built", "fostering": "building",
-    "showcased": "showed", "showcasing": "showing", "honed": "sharpened", "meticulously": "carefully",
-    "meticulous": "careful", "seamlessly": "smoothly", "orchestrated": "organized", "cultivated": "built",
-    "pivotal": "key", "instrumental": "key",
+    "spearheaded": "led", "spearheading": "leading", "spearhead": "lead", "leveraged": "applied", "leveraging": "applying",
+    "utilized": "used", "utilizing": "using", "utilize": "use", "showcased": "demonstrated", "showcasing": "demonstrating",
+    "seamlessly": "smoothly",
 }
 SWAP_RE = re.compile(r"\b(" + "|".join(SWAPS) + r")\b", re.I)
 
@@ -200,9 +198,17 @@ Rules:
 - Put each item in the best section: education, experience (paid work and internships), activities
   (clubs, sports, leadership, arts), volunteer (unpaid service), projects (personal, class or research projects).
 - Split combined lines into proper fields. Dates like "Jun 2024 - Present". Leave a field "" when unknown.
-- bullets: short factual statements of what the person did, copied or lightly cleaned from the material.
+- SPLIT COMBINED ROLES. A line that joins several roles with "and", "&", "/", commas or "then" is several entries.
+  Roles at a different school level (middle school vs. high school), organization, team, year or title are always
+  separate entries, even when the activity has the same name. Example: "Middle School Yearbook Staff Member AND High
+  School Yearbook People Section Editor" becomes two activities entries: {"title":"Staff Member","org":"Yearbook,
+  [middle school]"} and {"title":"People Section Editor","org":"Yearbook, [high school]"}, using the real school names
+  when given.
+- bullets: factual statements of what the person did, copied or lightly cleaned from the material. Keep every detail.
 - skills: one group per line like "Languages: Python, Java". Coursework and tests: one item each.
-- If the same thing appears twice, include it once.
+- Only merge two items when they are word-for-word the same role at the same place and time.
+- Check your work before answering: every role, organization, school, title, number and award in the material must
+  appear somewhere in your JSON.
 - Do not use em dashes.
 Return only JSON in exactly this shape:
 {"profile":{"name":"","email":"","phone":"","location":"","links":[],"summary":""},
@@ -232,12 +238,37 @@ def normalize(data):
     return out
 
 
+STOPWORDS = {"and", "or", "the", "of", "for", "in", "at", "to", "with", "on", "my", "then", "also", "a", "an"}
+
+
+def _missing(text, data):
+    """Names and numbers from the raw material that never made it into the structured JSON."""
+    blob = json.dumps(data, ensure_ascii=False).lower()
+    return sorted(f for f in _facts(text) if f not in blob and f not in STOPWORDS)
+
+
 def structure(text):
+    text = text[:40000]
     messages = [
         {"role": "system", "content": STRUCTURE_SYSTEM},
-        {"role": "user", "content": "Raw material:\n<<<\n" + text[:40000] + "\n>>>"},
+        {"role": "user", "content": "Raw material:\n<<<\n" + text + "\n>>>"},
     ]
-    return normalize(_json(chat(messages, temperature=0.1, json_mode=True)))
+    raw = chat(messages, temperature=0.1, json_mode=True)
+    data = _json(raw)
+    lost = _missing(text, data)
+    if lost:  # one corrective pass: dropped roles are the most common failure
+        messages += [
+            {"role": "assistant", "content": raw},
+            {"role": "user", "content": "You left these details out: " + ", ".join(lost[:40]) + ". Re-read the material, "
+             "put each one where it belongs (a separate entry if it is a separate role) and return the complete JSON again."},
+        ]
+        try:
+            retry = _json(chat(messages, temperature=0.1, json_mode=True))
+            if len(_missing(text, retry)) < len(lost):
+                data = retry
+        except AIError:
+            pass
+    return normalize(data)
 
 
 # --------------------------------------------------------------------------- polishing
@@ -247,8 +278,9 @@ def structure(text):
 # employers screening for problem-solving, teamwork, communication and work ethic (NACE Job Outlook);
 # quantified accomplishments over duties; and depth, commitment and impact for admissions.
 BASE_RULES = """You are a senior resume writer and former campus recruiter editing a real person's resume by hand. You turn
-rough notes into polished, specific, substantial writing that wins interviews and acceptances, and that reads like a
-skilled human wrote it.
+rough notes into polished, substantial, precisely worded writing that wins interviews and acceptances. Recruiters
+complain that AI resumes are interchangeable buzzword salad, so every phrase you write must be tied to something this
+specific person actually did. Sophisticated vocabulary is welcome; empty vocabulary is not.
 
 What the research says works, so apply it:
 1. Recruiters give a resume a 6 to 8 second first scan, mostly on titles, organizations, dates and education. Put the
@@ -256,28 +288,41 @@ What the research says works, so apply it:
 2. Accomplishments beat duties. Each bullet shows what was done, how (tools, methods, setting, who was involved) and
    why it mattered (result, scale, who benefited).
 3. Employers look hardest for problem-solving, teamwork, communication, work ethic, initiative, analytical and
-   technical skills. Prove these with evidence in the bullets, never as adjectives.
-4. Use the vocabulary of the target field and role so keyword screening (ATS) matches.
+   technical skills. Prove these with evidence in the bullets, never as bare adjectives.
+4. Use the real vocabulary of the field so keyword screening (ATS) matches: the terms a practitioner would use for
+   that work. A yearbook editor does "page layout", "copyediting", "photo selection", "interviews", "editorial
+   deadlines" and "production schedules"; a cashier handles "point-of-sale transactions", "cash reconciliation" and
+   "customer inquiries"; a team captain handles "conditioning plans", "team morale" and "coaching younger athletes".
+   Choose the keywords that fit the role and the target, and use each one where it describes a real task.
 
-Length and depth (do not just retype the input, rebuild it):
+Length, depth and vocabulary (do not just retype the input, rebuild it):
 - Each entry gets 3 to 5 bullets when the facts allow. Expand thin bullets with the context the facts imply: the
-  setting, the audience, the tools, the purpose. Split a bullet that packs in two accomplishments.
-- Bullets run about 14 to 28 words. One sentence, no ending period, no "I" or "my".
+  setting, the audience, the tools, the purpose, the scope. Split a bullet that packs in two accomplishments.
+- Bullets run about 18 to 32 words. One sentence, no ending period, no "I" or "my".
 - Past tense for finished roles, present tense for current ones (dates ending in Present or Current).
+- Write with a broad, exact, professional vocabulary. Prefer the precise word to the plain one when it is more
+  accurate: "curated" over "picked", "copyedited" over "fixed", "coordinated" over "set up", "mentored" over "helped".
+- Use synonyms deliberately. Do not repeat an opening verb anywhere in the whole resume, and avoid reusing the same
+  noun or adjective across bullets in one entry. Rich verb choices include: directed, oversaw, supervised, chaired,
+  coordinated, administered, organized, mobilized, recruited, mentored, coached, trained, tutored, instructed,
+  advised, guided, designed, engineered, developed, devised, drafted, authored, composed, edited, copyedited,
+  proofread, curated, photographed, produced, launched, founded, established, pioneered, initiated, revamped,
+  restructured, streamlined, standardized, consolidated, modernized, expanded, accelerated, increased, boosted,
+  reduced, minimized, resolved, troubleshot, diagnosed, analyzed, assessed, evaluated, audited, investigated,
+  researched, surveyed, compiled, catalogued, documented, tracked, monitored, forecast, budgeted, allocated,
+  negotiated, secured, solicited, persuaded, presented, pitched, interviewed, liaised, collaborated, partnered,
+  facilitated, executed, delivered, managed, maintained, processed, served, assisted, supported, cultivated,
+  orchestrated, championed, fostered.
 
-Sound like an expert human, not an AI:
-- Plain, confident, concrete language. Specific nouns and numbers over abstract claims.
-- Vary rhythm: mix shorter and longer bullets, and vary how bullets open (some lead with the result, most with the
-  action). Never start two bullets in the same entry with the same verb.
-- Pick precise verbs that fit what happened: led, directed, organized, coordinated, chaired, recruited, mentored,
-  trained, taught, built, designed, launched, founded, wrote, produced, developed, created, cut, raised, grew,
-  increased, reduced, streamlined, redesigned, resolved, assisted, served, guided, analyzed, tested, measured,
-  researched, tracked, evaluated, presented, pitched, negotiated, managed, planned, scheduled, handled, prepared.
-- Never use these AI-sounding words and phrases: spearheaded, leveraged, utilized, utilize, synergy, dynamic,
-  passionate, results-driven, detail-oriented, go-getter, fostered, fostering, showcasing, showcased, cutting-edge,
-  robust, seamless, seamlessly, delve, tapestry, testament, honed, adept, meticulous, meticulously, proven track
-  record, in today's, a wide range of, various, diverse array, cultivated, orchestrated, pivotal, instrumental,
-  invaluable, multifaceted, navigate, navigating, elevate, empower, journey, realm, landscape.
+Sound like an expert human, not a template:
+- Confident, concrete, specific. Specific nouns and numbers over abstract claims.
+- Vary rhythm: mix shorter and longer bullets, and vary how bullets open (most with the action, an occasional one
+  with the setting or the result).
+- Never use these overused filler words and phrases: spearheaded, leveraged, utilized, utilize, synergy, synergies,
+  dynamic, passionate, results-driven, detail-oriented, go-getter, team player, hard worker, self-starter, think
+  outside the box, cutting-edge, robust, seamless, seamlessly, delve, tapestry, testament, proven track record,
+  in today's, a wide range of, diverse array, multifaceted, navigate, navigating, elevate, empower, journey, realm,
+  landscape, showcasing, showcased.
 - Never tack a trailing "-ing" clause onto the end of a bullet (", ensuring...", ", demonstrating...",
   ", highlighting...", ", resulting in..."). State the result directly instead.
 - No strings of three adjectives, no filler like "successfully" or "effectively", no em dashes, no semicolons.
@@ -286,55 +331,44 @@ Hard rules:
 - ACCOUNT FOR EVERYTHING. Every fact in the input must still be in your output: every entry, number, name, tool,
   course, score, award, certification, hour count and date. If you merge two bullets, keep both facts.
   Write numbers exactly as given (keep "$3,200", "80+", "120+ hours").
+- An entry with no bullets still gets 3 bullets built from its title, organization and the standard duties of that
+  exact role.
 - Never invent numbers, results, employers, titles, dates, awards, tools, scores or courses.
 - Enrichment is allowed in two places only:
-  a) "added": for an entry with fewer than 3 bullets, up to 2 extra bullets describing duties or skills that are
+  a) "added": for an entry with fewer than 3 bullets, up to 3 extra bullets describing duties or skills that are
      standard and clearly implied for that exact role and type of organization (a cashier processes payments and
-     balances a register; a club treasurer tracks the budget). No numbers, names, tools or outcomes in added bullets.
+     balances a register; a yearbook editor assigns stories and meets print deadlines). No numbers, names, tools or
+     outcomes in added bullets.
   b) Skills may include transferable or technical skills that the entries clearly demonstrate.
-- The summary is written fresh from the whole resume. Treat current_summary as raw notes to mine for facts; never
-  reuse its sentences, phrasing or order.
 - "tips": up to 5 short, specific questions about missing details that would make the resume stronger, naming the
-  entry, for example "About how many customers did you help per shift at H-E-B?".
+  entry, for example "About how many pages did you design for the People section?".
 - Keep proper names exactly as written. Return only JSON."""
 
 TARGET_GUIDES = {
     "internship": """TARGET: INTERNSHIP.
 - Employers choosing between similar students lean hardest on relevant experience, so frame every job, club and class
   project as proof of the skills the target field needs.
-- Bring out technical tools, methods and transferable skills; connect part-time work to professionalism and teamwork.
-- Summary (3 to 4 sentences, 65 to 100 words): class level, school and field of study; the strongest relevant experience or
-  project with its result; 2 or 3 key skills; the internship goal.""",
+- Bring out technical tools, methods and transferable skills; connect part-time work to professionalism and teamwork.""",
     "job": """TARGET: JOB (professional or new-grad role).
 - Hiring managers want impact and scope: lead with results, scale (people, money, volume) and ownership.
 - Mirror the language of the target role so applicant tracking systems match keywords.
-- Professional, confident tone; no student framing unless the person is still in school.
-- Summary (3 to 4 sentences, 70 to 110 words): professional identity and type of experience; 2 standout
-  accomplishments with their numbers; core skills that match the role; what they bring to the team.""",
+- Professional, confident tone; no student framing unless the person is still in school.""",
     "college": """TARGET: COLLEGE ADMISSIONS.
 - Admissions readers look for depth, sustained commitment, leadership growth, initiative and impact on others, not a
   long list. Show how long and how much: years involved, hours per week, people reached, results.
 - Show progression (member to officer to leader), what the student started or changed, and community contribution.
-- Warm but polished tone that sounds like a motivated student, not a corporate executive.
-- Summary (3 to 4 sentences, 65 to 100 words): academic strengths and interests, 2 defining commitments or leadership roles
-  with impact, and personal qualities or goals shown by the facts.""",
+- Warm but polished tone that sounds like a motivated student, not a corporate executive.""",
     "scholarship": """TARGET: SCHOLARSHIP.
 - Committees score academic achievement, leadership, community service and goals. Make each one easy to find.
-- Stress service hours, people helped, honors and the drive behind them; connect activities to future goals.
-- Summary (3 to 4 sentences, 65 to 100 words): academic record and honors, leadership and service impact, and the
-  educational or career goal the scholarship would support.""",
+- Stress service hours, people helped, honors and the drive behind them; connect activities to future goals.""",
     "research": """TARGET: RESEARCH POSITION OR ACADEMIC PROGRAM (CV style).
 - Faculty look for research methods, technical and lab skills, analytical thinking, persistence and outcomes such as
   results, posters, presentations or papers. Name methods, instruments, software, datasets and mentors precisely.
-- Precise, scholarly tone; describe the question, the method and the finding.
-- Summary (3 to 4 sentences, 65 to 100 words): academic standing and field, research interests and experience with methods,
-  and technical skills plus the program or lab goal.""",
+- Precise, scholarly tone; describe the question, the method and the finding.""",
     "firstjob": """TARGET: FIRST OR PART-TIME JOB.
 - Managers hiring entry-level staff want reliability, work ethic, customer service, teamwork, communication and
   willingness to learn. School, sports, clubs, volunteering and family responsibilities all prove these.
-- Plain, friendly, professional wording; translate school activities into workplace strengths.
-- Summary (3 sentences, 55 to 85 words): who they are, the strengths their activities prove, and eagerness and
-  availability for the role.""",
+- Plain, friendly, professional wording; translate school activities into workplace strengths.""",
 }
 
 NUM_RE = re.compile(r"\$?\d[\d,.]*\+?%?")
@@ -372,63 +406,30 @@ def _restore_items(originals, rewritten, kind):
     return rewritten + missing, len(missing)
 
 
-def _highlights(p):
-    """Facts the summary has to work in, so it reflects the whole resume."""
-    out = []
-    key = p.get("target_key", "")
-    edu = (p.get("education") or [{}])[0]
-    if edu.get("school"):
-        out.append(edu["school"] + (f", {edu['degree']}" if edu.get("degree") else ""))
-    if edu.get("gpa") and key in ("internship", "college", "scholarship", "research"):
-        out.append(f"GPA {edu['gpa']}")
-    for sec in ("experience", "activities", "projects", "volunteer"):
-        items = (p.get("sections") or {}).get(sec) or []
-        if items:
-            out.append(" at ".join(x for x in (items[0].get("title"), items[0].get("org")) if x))
-    if p.get("awards"):
-        out.append(p["awards"][0])
-    if p.get("skills"):
-        out.append("skills: " + re.sub(r"^[^:]{1,32}:\s*", "", p["skills"][0]))
-    if p.get("role"):
-        out.append("goal: " + p["role"])
-    return [x for x in out if x]
-
-
 def polish(payload):
-    scope = payload.get("scope", "all")
     guide = TARGET_GUIDES.get(payload.get("target_key"), TARGET_GUIDES["job"])
     sections = payload.get("sections") or {}
     education = payload.get("education") or []
     lists = {k: payload.get(k) or [] for k in ("skills", "awards", "certifications", "coursework", "tests")}
     brief = {
         "role_or_program": payload.get("role", ""),
-        "current_summary": payload.get("summary", ""),
-        "summary_must_mention": _highlights(payload),
         "education": education,
         "sections": sections,
         **lists,
     }
-    if scope == "summary":
-        task = ("Write only the summary. Draw on the whole resume, not just the current summary, and work in every "
-                "item in summary_must_mention.")
-        shape = '{"summary": ""}'
-    else:
-        task = ("Rewrite everything: the summary, every education entry's details, every entry's bullets, and the skills, "
-                "awards, certifications, coursework and tests lists. In \"sections\" list every entry id you were given "
-                "exactly once, ordered from most to least relevant to the target (recency breaks ties). In \"education\" "
-                "return every education id. The summary must work in every item in summary_must_mention.")
-        shape = ('{"summary": "", "education": [{"id": "education:0", "bullets": []}], '
-                 '"sections": {"experience": [{"id": "experience:0", "bullets": [], "added": []}]}, '
-                 '"skills": [], "awards": [], "certifications": [], "coursework": [], "tests": [], "tips": []}')
+    task = ("Rewrite everything: every education entry's details, every entry's bullets, and the skills, awards, "
+            "certifications, coursework and tests lists. In \"sections\" list every entry id you were given exactly "
+            "once, ordered from most to least relevant to the target (recency breaks ties). In \"education\" return "
+            "every education id.")
+    shape = ('{"education": [{"id": "education:0", "bullets": []}], '
+             '"sections": {"experience": [{"id": "experience:0", "bullets": [], "added": []}]}, '
+             '"skills": [], "awards": [], "certifications": [], "coursework": [], "tests": [], "tips": []}')
     messages = [
         {"role": "system", "content": BASE_RULES + "\n\n" + guide},
         {"role": "user", "content": f"{task}\nReturn JSON shaped like {shape}\n\nResume data:\n{json.dumps(brief, ensure_ascii=False)}"},
     ]
     data = _json(chat(messages, temperature=0.5, json_mode=True))
-
-    result = {"summary": _humanize(_clean(data.get("summary")))}
-    if scope == "summary":
-        return result
+    result = {}
 
     restored = added = 0
     edu_rows = {r.get("id"): r for r in data.get("education") or [] if isinstance(r, dict)}
@@ -448,7 +449,7 @@ def polish(payload):
                 continue
             seen.add(rid)
             bullets, n = _restore(originals[rid].get("bullets") or [], _clean_list(row.get("bullets")))
-            extra = [b for b in _clean_list(row.get("added")) if not NUM_RE.search(b)][:2]
+            extra = [b for b in _clean_list(row.get("added")) if not NUM_RE.search(b)][:3]
             restored += n
             added += len(extra)
             rows.append({"id": rid, "bullets": bullets + extra, "added": len(extra)})
